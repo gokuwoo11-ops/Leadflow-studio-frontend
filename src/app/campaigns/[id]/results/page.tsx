@@ -52,28 +52,51 @@ export default async function ResultsPage({ params }: PageProps) {
 
   if (!user) redirect("/login");
 
-  const baseUrl =
-  process.env.NEXT_PUBLIC_APP_URL ||
-  (process.env.VERCEL_URL
-    ? `https://${process.env.VERCEL_URL}`
-    : "http://localhost:3000");
+ const backendUrl =
+  process.env.BACKEND_API_URL ||
+  process.env.NEXT_PUBLIC_BACKEND_URL ||
+  process.env.NEXT_PUBLIC_API_URL ||
+  "https://pdf-api-bw6a.onrender.com";
 
+let data: Row = {};
+
+try {
   const response = await fetch(
-    `${baseUrl}/api/campaigns/${campaignId}/results`,
+    `${backendUrl}/campaigns/${encodeURIComponent(campaignId)}/results`,
     { cache: "no-store" }
   );
 
-  const data = await response.json();
+  const text = await response.text();
+
+  try {
+    data = text ? JSON.parse(text) : {};
+  } catch {
+    data = {
+      success: false,
+      error: "Backend returned an invalid response. Please try again.",
+    };
+  }
 
   if (!response.ok || !data.success) {
     return (
       <main className="min-h-screen bg-slate-950 px-6 py-8 text-white">
         <div className="mx-auto max-w-4xl rounded-3xl border border-rose-400/20 bg-rose-400/10 p-6 text-rose-100">
-          {data.error || "Failed to load campaign results."}
+          {data.error || `Failed to load campaign results. Status: ${response.status}`}
         </div>
       </main>
     );
   }
+} catch (error) {
+  return (
+    <main className="min-h-screen bg-slate-950 px-6 py-8 text-white">
+      <div className="mx-auto max-w-4xl rounded-3xl border border-rose-400/20 bg-rose-400/10 p-6 text-rose-100">
+        {error instanceof Error
+          ? error.message
+          : "Failed to connect to backend results API."}
+      </div>
+    </main>
+  );
+}
 
   const campaign: Row = data.campaign || {};
   const summary: Row = data.summary || {};

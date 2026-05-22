@@ -2,14 +2,8 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createServerSupabase } from "@/lib/supabase/server";
 import DeleteCampaignButton from "./DeleteCampaignButton";
-import PageReveal from "@/components/PageReveal";
-type Row = Record<string, any>;
 
-const BACKEND_URL =
-  process.env.BACKEND_API_URL ||
-  process.env.NEXT_PUBLIC_BACKEND_URL ||
-  process.env.NEXT_PUBLIC_API_URL ||
-  "https://pdf-api-bw6a.onrender.com";
+type Row = Record<string, any>;
 
 function normalizeStatus(value?: string | null) {
   return String(value || "").toLowerCase();
@@ -22,23 +16,16 @@ function formatDate(value?: string | null) {
   return date.toLocaleDateString();
 }
 
-async function getCampaignResults(campaignId: string) {
-  try {
-    const response = await fetch(
-      `${BACKEND_URL}/campaigns/${campaignId}/results`,
-      { cache: "no-store" }
-    );
+function countByLeadId(rows: Row[]) {
+  const map = new Map<string, number>();
 
-    if (!response.ok) return null;
+  rows.forEach((row) => {
+    const leadId = String(row.lead_id || "");
+    if (!leadId) return;
+    map.set(leadId, (map.get(leadId) || 0) + 1);
+  });
 
-    const data = await response.json();
-
-    if (!data?.success) return null;
-
-    return data;
-  } catch {
-    return null;
-  }
+  return map;
 }
 
 export default async function CampaignsPage() {
@@ -64,56 +51,116 @@ export default async function CampaignsPage() {
   }
 
   const campaigns: Row[] = Array.isArray(campaignsRaw) ? campaignsRaw : [];
+  const campaignIds = campaigns.map((campaign) => campaign.id).filter(Boolean);
 
-  const campaignResults = await Promise.all(
-    campaigns.map(async (campaign) => {
-      const resultsData = await getCampaignResults(String(campaign.id));
-      return {
-        campaign,
-        resultsData,
-      };
-    })
+  const { data: leadsRaw } = campaignIds.length
+    ? await supabase
+        .from("leads")
+        .select("*")
+        .in("campaign_id", campaignIds)
+    : { data: [] };
+
+  const leads: Row[] = Array.isArray(leadsRaw) ? leadsRaw : [];
+  const leadIds = leads.map((lead) => lead.id).filter(Boolean);
+
+  const [{ data: reportsRaw }, { data: analysesRaw }, { data: outreachRaw }] =
+    leadIds.length
+      ? await Promise.all([
+          supabase.from("reports").select("id, lead_id, pdf_url").in("lead_id", leadIds),
+          supabase.from("lead_analyses").select("id, lead_id").in("lead_id", leadIds),
+          supabase.from("outreach_messages").select("id, lead_id").in("lead_id", leadIds),
+        ])
+      : [{ data: [] }, { data: [] }, { data: [] }];
+
+  const reports: Row[] = Array.isArray(reportsRaw) ? reportsRaw : [];
+  const analyses: Row[] = Array.isArray(analysesRaw) ? analysesRaw : [];
+  const outreachMessages: Row[] = Array.isArray(outreachRaw) ? outreachRaw : [];
+
+  const reportCountByLeadId = countByLeadId(
+    reports.filter((report) => report.pdf_url)
   );
+  const analysisCountByLeadId = countByLeadId(analyses);
+  const outreachCountByLeadId = countByLeadId(outreachMessages);
+
+  const leadsByCampaignId = new Map<string, Row[]>();
+
+  leads.forEach((lead) => {
+    const campaignId = String(lead.campaign_id || "");
+    if (!campaignId) return;
+
+    const existing = leadsByCampaignId.get(campaignId) || [];
+    existing.push(lead);
+    leadsByCampaignId.set(campaignId, existing);
+  });
+
+  const campaignResults = campaigns.map((campaign) => {
+    const campaignLeads = leadsByCampaignId.get(String(campaign.id)) || [];
+
+    const totalLeads = campaignLeads.length;
+    const processedLeads = campaignLeads.filter(
+      (lead) => lead.processing_status === "processed"
+    ).length;
+    const failedLeads = campaignLeads.filter(
+      (lead) => lead.processing_status === "failed"
+    ).length;
+
+    const reportsCount = campaignLeads.reduce(
+      (sum, lead) => sum + (reportCountByLeadId.get(String(lead.id)) || 0),
+      0
+    );
+
+    const analysesCount = campaignLeads.reduce(
+      (sum, lead) => sum + (analysisCountByLeadId.get(String(lead.id)) || 0),
+      0
+    );
+
+    const outreachCount = campaignLeads.reduce(
+      (sum, lead) => sum + (outreachCountByLeadId.get(String(lead.id)) || 0),
+      0
+    );
+
+    return {
+      campaign,
+      summary: {
+        total_leads: totalLeads,
+        processed_leads: processedLeads,
+        failed_leads: failedLeads,
+        reports_count: reportsCount,
+        analyses_count: analysesCount,
+        outreach_count: outreachCount,
+      },
+    };
+  });
 
   const totalLeads = campaignResults.reduce(
-    (sum, item) => sum + Number(item.resultsData?.summary?.total_leads || 0),
+    (sum, item) => sum + Number(item.summary.total_leads || 0),
     0
   );
 
   const totalProcessed = campaignResults.reduce(
-    (sum, item) =>
-      sum + Number(item.resultsData?.summary?.processed_leads || 0),
+    (sum, item) => sum + Number(item.summary.processed_leads || 0),
     0
   );
 
   const totalFailed = campaignResults.reduce(
-    (sum, item) => sum + Number(item.resultsData?.summary?.failed_leads || 0),
+    (sum, item) => sum + Number(item.summary.failed_leads || 0),
     0
   );
 
-  const totalReports = campaignResults.reduce((sum, item) => {
-    const results = Array.isArray(item.resultsData?.results)
-      ? item.resultsData.results
-      : [];
+  const totalReports = campaignResults.reduce(
+    (sum, item) => sum + Number(item.summary.reports_count || 0),
+    0
+  );
 
-    return sum + results.filter((result: Row) => result.report?.pdf_url).length;
-  }, 0);
+  const totalAnalyses = campaignResults.reduce(
+    (sum, item) => sum + Number(item.summary.analyses_count || 0),
+    0
+  );
 
-  const totalAnalyses = campaignResults.reduce((sum, item) => {
-    const results = Array.isArray(item.resultsData?.results)
-      ? item.resultsData.results
-      : [];
-
-    return sum + results.filter((result: Row) => result.analysis).length;
-  }, 0);
-
-  const totalOutreach = campaignResults.reduce((sum, item) => {
-    const results = Array.isArray(item.resultsData?.results)
-      ? item.resultsData.results
-      : [];
-
-    return sum + results.filter((result: Row) => result.outreach).length;
-  }, 0);
+  const totalOutreach = campaignResults.reduce(
+    (sum, item) => sum + Number(item.summary.outreach_count || 0),
+    0
+  );
 
   const completedCampaigns = campaigns.filter(
     (campaign) => normalizeStatus(campaign.status) === "completed"
@@ -136,8 +183,7 @@ export default async function CampaignsPage() {
         <div className="absolute inset-0 bg-[linear-gradient(to_right,rgba(255,255,255,0.03)_1px,transparent_1px),linear-gradient(to_bottom,rgba(255,255,255,0.03)_1px,transparent_1px)] bg-[size:80px_80px] opacity-20" />
       </div>
 
-     <PageReveal>
-        <div className="relative mx-auto max-w-7xl space-y-8">
+      <div className="relative mx-auto max-w-7xl space-y-8">
         <header className="relative overflow-hidden rounded-[2.5rem] border border-white/10 bg-slate-900/80 p-7 shadow-2xl shadow-cyan-950/30">
           <div className="pointer-events-none absolute -right-24 -top-24 h-80 w-80 rounded-full bg-cyan-300/10 blur-3xl" />
           <div className="pointer-events-none absolute -bottom-32 left-1/3 h-80 w-80 rounded-full bg-blue-500/10 blur-3xl" />
@@ -202,8 +248,8 @@ export default async function CampaignsPage() {
             </div>
 
             <p className="max-w-xl text-sm leading-6 text-slate-400">
-              Open a campaign to review leads, PDF reports, outreach messages,
-              CSV export, and follow-up status.
+              Dashboard counts now load directly from Supabase for faster access.
+              Open a campaign to view detailed results and actions.
             </p>
           </div>
 
@@ -227,24 +273,7 @@ export default async function CampaignsPage() {
             </div>
           ) : (
             <div className="space-y-4">
-              {campaignResults.map(({ campaign, resultsData }) => {
-                const summary = resultsData?.summary || {};
-                const results = Array.isArray(resultsData?.results)
-                  ? resultsData.results
-                  : [];
-
-                const reportsCount = results.filter(
-                  (result: Row) => result.report?.pdf_url
-                ).length;
-
-                const analysesCount = results.filter(
-                  (result: Row) => result.analysis
-                ).length;
-
-                const outreachCount = results.filter(
-                  (result: Row) => result.outreach
-                ).length;
-
+              {campaignResults.map(({ campaign, summary }) => {
                 const status = normalizeStatus(campaign.status);
 
                 return (
@@ -335,16 +364,19 @@ export default async function CampaignsPage() {
                         value={String(summary.failed_leads || 0)}
                       />
 
-                      <SmallStat label="PDFs" value={String(reportsCount)} />
+                      <SmallStat
+                        label="PDFs"
+                        value={String(summary.reports_count || 0)}
+                      />
 
                       <SmallStat
                         label="Analyses"
-                        value={String(analysesCount)}
+                        value={String(summary.analyses_count || 0)}
                       />
 
                       <SmallStat
                         label="Outreach"
-                        value={String(outreachCount)}
+                        value={String(summary.outreach_count || 0)}
                       />
                     </div>
                   </article>
@@ -354,7 +386,6 @@ export default async function CampaignsPage() {
           )}
         </section>
       </div>
-      </PageReveal>
     </main>
   );
 }
