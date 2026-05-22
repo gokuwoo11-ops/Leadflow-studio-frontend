@@ -22,45 +22,43 @@ export default function LoginPage() {
 
   const handleSignIn = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+
     setLoading(true);
-    setStatus(null);
+    setStatus({
+      type: "success",
+      text: "Signing in... opening your dashboard.",
+    });
 
     const { error } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
 
-    setLoading(false);
-
     if (error) {
+      setLoading(false);
       setStatus({ type: "error", text: error.message });
       return;
     }
 
     router.push("/campaigns");
+    router.refresh();
   };
 
   const handleSignUp = async () => {
     setLoading(true);
-    setStatus(null);
+    setStatus({
+      type: "success",
+      text: "Creating account... redirecting to dashboard.",
+    });
 
-    const { error, data } = await supabase.auth.signUp({
+    const { error } = await supabase.auth.signUp({
       email,
       password,
     });
 
-    setLoading(false);
-
     if (error) {
+      setLoading(false);
       setStatus({ type: "error", text: error.message });
-      return;
-    }
-
-    if (data?.user && !data.session) {
-      setStatus({
-        type: "success",
-        text: "Account created. Check your inbox if email confirmation is enabled, then sign in.",
-      });
       return;
     }
 
@@ -70,6 +68,7 @@ export default function LoginPage() {
     });
 
     router.push("/campaigns");
+    router.refresh();
   };
 
   return (
@@ -191,7 +190,7 @@ export default function LoginPage() {
                 disabled={loading}
                 className="inline-flex w-full items-center justify-center rounded-full bg-cyan-300 px-6 py-4 text-sm font-black text-slate-950 shadow-2xl shadow-cyan-300/20 transition hover:-translate-y-0.5 hover:bg-cyan-200 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {loading ? "Signing in..." : "Sign In →"}
+                {loading ? "Opening dashboard..." : "Sign In →"}
               </button>
             ) : (
               <button

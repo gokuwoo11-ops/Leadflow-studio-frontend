@@ -9,6 +9,10 @@ import CopyAllOutreachButton from "./CopyAllOutreachButton";
 import ExportCsvButton from "./ExportCsvButton";
 import PageReveal from "@/components/PageReveal";
 
+
+export const dynamic = "force-dynamic";
+export const fetchCache = "force-no-store";
+
 type PageProps = {
   params: Promise<{ id: string }>;
 };
@@ -48,7 +52,11 @@ export default async function ResultsPage({ params }: PageProps) {
 
   if (!user) redirect("/login");
 
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+  const baseUrl =
+  process.env.NEXT_PUBLIC_APP_URL ||
+  (process.env.VERCEL_URL
+    ? `https://${process.env.VERCEL_URL}`
+    : "http://localhost:3000");
 
   const response = await fetch(
     `${baseUrl}/api/campaigns/${campaignId}/results`,
