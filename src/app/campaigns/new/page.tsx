@@ -1,13 +1,9 @@
-// ============================================================
-// FILE 2: src/app/campaigns/new/page.tsx
-// Create these folders if needed:
-// src → app → campaigns → new → page.tsx
-// ============================================================
-
 "use client";
 
-import { FormEvent, useState } from "react";
+import Link from "next/link";
+import { FormEvent, ReactNode, useState } from "react";
 import { useRouter } from "next/navigation";
+import PageReveal from "@/components/PageReveal";
 
 type CreateCampaignResponse = {
   success: boolean;
@@ -36,6 +32,7 @@ function inferTargetBusiness(searchKeyword: string) {
 
 export default function NewCampaignPage() {
   const router = useRouter();
+
   const [loading, setLoading] = useState(false);
   const [runLoading, setRunLoading] = useState(false);
   const [runError, setRunError] = useState<string | null>(null);
@@ -43,12 +40,15 @@ export default function NewCampaignPage() {
   const [campaignId, setCampaignId] = useState<string | null>(null);
 
   const inputClasses =
-    "w-full rounded-2xl border border-white/10 bg-slate-900/95 px-4 py-3 text-sm text-white placeholder:text-slate-500 focus:border-cyan-300 focus:outline-none focus:ring-2 focus:ring-cyan-300/30 transition-shadow shadow-sm shadow-slate-950/20";
+    "w-full rounded-2xl border border-white/10 bg-slate-950/80 px-4 py-3 text-sm text-white placeholder:text-slate-500 outline-none transition focus:border-cyan-300 focus:ring-2 focus:ring-cyan-300/25";
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+
     setLoading(true);
     setResult(null);
+    setRunError(null);
+    setCampaignId(null);
 
     const form = event.currentTarget;
     const formData = new FormData(form);
@@ -76,7 +76,7 @@ export default function NewCampaignPage() {
       outreach_tone: String(formData.get("outreach_tone") || ""),
       lead_search_keyword: leadSearchKeyword,
       search_keyword: leadSearchKeyword,
-      leadSearchKeyword: leadSearchKeyword,
+      leadSearchKeyword,
       target_business: inferredTargetBusiness,
       targetBusiness: inferredTargetBusiness,
       leads_requested: Number(formData.get("leads_requested") || 10),
@@ -111,51 +111,135 @@ export default function NewCampaignPage() {
     }
   }
 
+  async function runCampaignNow() {
+    if (!campaignId || !result?.campaign) return;
+
+    setRunLoading(true);
+    setRunError(null);
+
+    try {
+      const runPayload = {
+        campaign_id: campaignId,
+        campaignId,
+        campaign_name: result.campaign.client_business_name || "",
+        client_business_name: result.campaign.client_business_name || "",
+        ideal_target_customer: result.campaign.ideal_target_customer || "",
+        idealTargetCustomer: result.campaign.ideal_target_customer || "",
+        niche: result.campaign.ideal_target_customer || "",
+        lead_search_keyword: result.campaign.lead_search_keyword || "",
+        search_keyword: result.campaign.lead_search_keyword || "",
+        leadSearchKeyword: result.campaign.lead_search_keyword || "",
+        target_location: result.campaign.target_location || "",
+        location: result.campaign.target_location || "",
+        service_offer: result.campaign.service_offer || "",
+        service_offered: result.campaign.service_offer || "",
+        serviceOffered: result.campaign.service_offer || "",
+        target_business: inferTargetBusiness(
+          result.campaign.lead_search_keyword || ""
+        ),
+        targetBusiness: inferTargetBusiness(
+          result.campaign.lead_search_keyword || ""
+        ),
+        leads_requested: result.campaign.leads_requested ?? 10,
+      };
+
+      const response = await fetch(`/api/campaigns/${campaignId}/run`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(runPayload),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok || !data.success) {
+        throw new Error(data.error || "Failed to start campaign.");
+      }
+
+      router.push(`/campaigns/${campaignId}/results`);
+    } catch (error) {
+      setRunError(
+        error instanceof Error ? error.message : "Unable to start campaign."
+      );
+    } finally {
+      setRunLoading(false);
+    }
+  }
+
   return (
-    <main className="min-h-screen bg-slate-950 px-6 py-8 text-white lg:px-10">
-      <div className="mx-auto max-w-6xl">
-        <div className="mb-8 flex flex-col gap-5 rounded-[2rem] border border-white/10 bg-slate-900/80 p-7 shadow-[0_25px_80px_-50px_rgba(14,165,233,0.65)] backdrop-blur-sm md:flex-row md:items-center md:justify-between">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.26em] text-cyan-300">
-              Campaign Setup
-            </p>
-            <h1 className="mt-3 text-3xl font-bold tracking-tight text-white sm:text-4xl">
-              Create a premium outbound campaign
-            </h1>
-            <p className="mt-4 max-w-3xl text-sm leading-7 text-slate-300 sm:text-base">
-              Fill in your audience, offer, and outreach tone. The system will save this campaign, then you can run it to discover leads and generate reports.
-            </p>
-          </div>
+    <main className="min-h-screen overflow-hidden bg-slate-950 px-6 py-8 text-white lg:px-10">
+      <div className="pointer-events-none fixed inset-0">
+        <div className="absolute left-[-12rem] top-[-12rem] h-[34rem] w-[34rem] rounded-full bg-cyan-300/20 blur-3xl" />
+        <div className="absolute right-[-16rem] top-[8rem] h-[32rem] w-[32rem] rounded-full bg-blue-500/15 blur-3xl" />
+        <div className="absolute bottom-[-16rem] left-1/2 h-[34rem] w-[34rem] -translate-x-1/2 rounded-full bg-cyan-300/10 blur-3xl" />
+        <div className="absolute inset-0 bg-[linear-gradient(to_right,rgba(255,255,255,0.03)_1px,transparent_1px),linear-gradient(to_bottom,rgba(255,255,255,0.03)_1px,transparent_1px)] bg-[size:80px_80px] opacity-20" />
+      </div>
 
-          <a
-            href="/"
-            className="inline-flex w-fit rounded-2xl border border-white/15 bg-white/[0.04] px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/[0.08]"
-          >
-            Back to Home
-          </a>
-        </div>
+        <PageReveal>
+  <div className="relative mx-auto max-w-7xl space-y-8">
+        <header className="relative overflow-hidden rounded-[2.5rem] border border-white/10 bg-slate-900/80 p-7 shadow-2xl shadow-cyan-950/30">
+          <div className="pointer-events-none absolute -right-24 -top-24 h-80 w-80 rounded-full bg-cyan-300/10 blur-3xl" />
+          <div className="pointer-events-none absolute -bottom-32 left-1/3 h-80 w-80 rounded-full bg-blue-500/10 blur-3xl" />
 
-        <div className="grid gap-8 lg:grid-cols-[1.4fr_0.65fr]">
-          <section className="rounded-[2rem] border border-white/10 bg-slate-900/80 p-7 shadow-2xl shadow-cyan-950/20">
-            <div className="mb-7 flex flex-col gap-3">
-              <p className="text-xs font-semibold uppercase tracking-[0.24em] text-cyan-300">
-                Campaign details
+          <div className="relative flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
+            <div>
+              <p className="text-xs font-black uppercase tracking-[0.28em] text-cyan-300">
+                Campaign setup
               </p>
-              <h2 className="text-3xl font-bold text-white sm:text-4xl">
-                Build your next prospecting campaign with confidence.
+
+              <h1 className="mt-3 max-w-4xl text-4xl font-black tracking-[-0.05em] text-white sm:text-6xl">
+                Build your next AI prospecting campaign.
+              </h1>
+
+              <p className="mt-4 max-w-3xl text-sm leading-7 text-slate-300 sm:text-base">
+                Give LeadFlow the right context: who you help, where they are,
+                what you sell, and how you want to approach them.
+              </p>
+            </div>
+
+            <div className="flex flex-wrap gap-3">
+              <Link
+                href="/campaigns"
+                className="rounded-full border border-white/15 bg-white/[0.04] px-5 py-3 text-sm font-black text-white transition hover:-translate-y-0.5 hover:border-cyan-300/40 hover:bg-cyan-300/10"
+              >
+                Back to Dashboard
+              </Link>
+
+              <Link
+                href="/"
+                className="rounded-full border border-white/15 bg-white/[0.04] px-5 py-3 text-sm font-black text-white transition hover:-translate-y-0.5 hover:border-cyan-300/40 hover:bg-cyan-300/10"
+              >
+                Home
+              </Link>
+            </div>
+          </div>
+        </header>
+
+        <div className="grid gap-8 lg:grid-cols-[1.35fr_0.75fr]">
+          <section className="rounded-[2.25rem] border border-white/10 bg-slate-900/80 p-7 shadow-2xl shadow-cyan-950/20">
+            <div className="mb-7">
+              <p className="text-xs font-black uppercase tracking-[0.24em] text-cyan-300">
+                Campaign inputs
+              </p>
+
+              <h2 className="mt-3 text-2xl font-black tracking-[-0.03em] text-white sm:text-4xl">
+                Precise inputs create stronger leads, audits, and outreach.
               </h2>
-              <p className="max-w-2xl text-sm leading-7 text-slate-300 sm:text-base">
-                This form captures the inputs that power lead discovery, outreach generation, and audit reporting. All fields remain unchanged so campaign creation works exactly as before.
+
+              <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-300">
+                Keep your niche specific. A focused campaign will produce better
+                lead scoring, better personalization, and better client-ready reports.
               </p>
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-6">
               <div className="grid gap-5 md:grid-cols-2">
-                <Field label="Client business name">
+                <Field label="Your business / agency name">
                   <input
                     name="client_business_name"
                     required
-                    placeholder="GrowthSpark Media"
+                    placeholder="Heisenberg Agency"
                     className={inputClasses}
                   />
                 </Field>
@@ -164,7 +248,7 @@ export default function NewCampaignPage() {
                   <input
                     name="sender_name"
                     required
-                    placeholder="Arjun"
+                    placeholder="Walter"
                     className={inputClasses}
                   />
                 </Field>
@@ -173,7 +257,7 @@ export default function NewCampaignPage() {
                   <input
                     name="sender_email"
                     type="email"
-                    placeholder="arjun@example.com"
+                    placeholder="you@example.com"
                     className={inputClasses}
                   />
                 </Field>
@@ -182,7 +266,7 @@ export default function NewCampaignPage() {
                   <input
                     name="target_location"
                     required
-                    placeholder="Chennai"
+                    placeholder="Madurai"
                     className={inputClasses}
                   />
                 </Field>
@@ -191,12 +275,12 @@ export default function NewCampaignPage() {
                   <input
                     name="lead_search_keyword"
                     required
-                    placeholder="gyms, dental clinics, restaurants..."
+                    placeholder="restaurants, salons, gyms..."
                     className={inputClasses}
                   />
                 </Field>
 
-                <Field label="How many leads?">
+                <Field label="Leads requested">
                   <select
                     name="leads_requested"
                     defaultValue="10"
@@ -210,22 +294,22 @@ export default function NewCampaignPage() {
               </div>
 
               <div className="grid gap-5">
-                <Field label="What service or offer do you sell?">
+                <Field label="Service offer">
                   <textarea
                     name="service_offer"
                     required
                     rows={4}
-                    placeholder="Short-form video content, Instagram growth strategy, and lead capture campaigns."
+                    placeholder="Website design and Instagram marketing for local restaurants."
                     className={`${inputClasses} min-h-[140px] resize-none`}
                   />
                 </Field>
 
-                <Field label="Who is your ideal target customer?">
+                <Field label="Ideal target customer">
                   <textarea
                     name="ideal_target_customer"
                     required
                     rows={3}
-                    placeholder="Local gyms and fitness studios that need better online visibility and more membership enquiries."
+                    placeholder="Restaurant owners with weak or no digital presence."
                     className={`${inputClasses} min-h-[120px] resize-none`}
                   />
                 </Field>
@@ -247,176 +331,137 @@ export default function NewCampaignPage() {
               <button
                 type="submit"
                 disabled={loading}
-                className="mt-2 inline-flex w-full items-center justify-center rounded-2xl bg-cyan-300 px-6 py-4 text-sm font-bold text-slate-950 transition hover:bg-cyan-200 disabled:cursor-not-allowed disabled:opacity-60"
+                className="inline-flex w-full items-center justify-center rounded-full bg-cyan-300 px-6 py-4 text-sm font-black text-slate-950 shadow-2xl shadow-cyan-300/20 transition hover:-translate-y-0.5 hover:bg-cyan-200 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {loading ? "Creating campaign..." : "Create Campaign"}
+                {loading ? "Creating campaign..." : "Create Campaign →"}
               </button>
             </form>
           </section>
 
-          <aside className="space-y-6 rounded-[2rem] border border-white/10 bg-slate-900/80 p-7 shadow-2xl shadow-cyan-950/20">
-            <div className="rounded-3xl bg-slate-950/70 p-6">
-              <p className="text-xs font-semibold uppercase tracking-[0.24em] text-cyan-300">
-                Campaign workflow
+          <aside className="space-y-6">
+            <section className="rounded-[2.25rem] border border-white/10 bg-slate-900/80 p-7 shadow-2xl shadow-cyan-950/20">
+              <p className="text-xs font-black uppercase tracking-[0.24em] text-cyan-300">
+                Workflow
               </p>
-              <h3 className="mt-4 text-xl font-semibold text-white">
-                Steps to launch and scale
+
+              <h3 className="mt-4 text-2xl font-black tracking-[-0.03em] text-white">
+                From campaign idea to client-ready assets.
               </h3>
-              <div className="mt-6 space-y-4">
+
+              <div className="relative mt-6 space-y-4">
+                <div className="absolute left-5 top-8 h-[calc(100%-4rem)] w-px bg-gradient-to-b from-cyan-300/50 via-cyan-300/20 to-transparent" />
+
                 <WorkflowStep
                   number="1"
-                  title="Enter campaign details"
-                  description="Describe the business, ideal customer, location, offer, and tone."
+                  title="Create"
+                  description="Enter target market, location, offer, and tone."
                 />
                 <WorkflowStep
                   number="2"
-                  title="Create campaign"
-                  description="Save the campaign so it is ready to run from your dashboard."
+                  title="Run"
+                  description="The system discovers and processes each lead."
                 />
                 <WorkflowStep
                   number="3"
-                  title="Run campaign"
-                  description="Discover leads, generate outreach, and create PDF audit reports."
+                  title="Use"
+                  description="Open PDFs, copy outreach, export CSV, and track status."
                 />
               </div>
-            </div>
+            </section>
 
-            {result && (
-              <div className="rounded-3xl border border-white/10 bg-slate-950/70 p-6">
-                <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">
-                  {result.success ? "Success" : "Error"}
+            {result ? (
+              <section className="rounded-[2.25rem] border border-white/10 bg-slate-900/80 p-7 shadow-2xl shadow-cyan-950/20">
+                <p className="text-xs font-black uppercase tracking-[0.24em] text-slate-400">
+                  {result.success ? "Campaign ready" : "Campaign error"}
                 </p>
-                <div className={`mt-4 rounded-3xl border px-5 py-4 ${result.success ? "border-emerald-300/20 bg-emerald-300/10 text-emerald-100" : "border-rose-300/20 bg-rose-300/10 text-rose-100"}`}>
+
+                <div
+                  className={`mt-4 rounded-3xl border p-5 ${
+                    result.success
+                      ? "border-emerald-300/20 bg-emerald-300/10"
+                      : "border-rose-300/20 bg-rose-300/10"
+                  }`}
+                >
                   {result.success ? (
                     <>
-                      <p className="text-sm font-semibold uppercase tracking-[0.18em] text-emerald-100/90">
-                        Campaign created successfully
-                      </p>
-                      <p className="mt-3 text-lg font-semibold text-white">
-                        Campaign ID: <span className="font-semibold text-white">{result.campaign?.id}</span>
-                      </p>
-                      <p className="mt-2 text-slate-200">
-                        Your campaign is ready. Click below to start lead discovery and report generation instantly.
+                      <p className="text-lg font-black text-white">
+                        Campaign created successfully.
                       </p>
 
-                      {campaignId && (
-                        <div className="mt-5">
-                          <button
-                            type="button"
-                            onClick={async () => {
-                              setRunLoading(true);
-                              setRunError(null);
+                      <p className="mt-3 break-all text-sm leading-6 text-slate-300">
+                        ID: {result.campaign?.id}
+                      </p>
 
-                              try {
-                                const runPayload = {
-                                  campaign_id: campaignId,
-                                  campaignId: campaignId,
-                                  campaign_name:
-                                    result?.campaign?.client_business_name || "",
-                                  client_business_name:
-                                    result?.campaign?.client_business_name || "",
-                                  ideal_target_customer:
-                                    result?.campaign?.ideal_target_customer || "",
-                                  idealTargetCustomer:
-                                    result?.campaign?.ideal_target_customer || "",
-                                  niche:
-                                    result?.campaign?.ideal_target_customer || "",
-                                  lead_search_keyword:
-                                    result?.campaign?.lead_search_keyword || "",
-                                  search_keyword:
-                                    result?.campaign?.lead_search_keyword || "",
-                                  leadSearchKeyword:
-                                    result?.campaign?.lead_search_keyword || "",
-                                  target_location:
-                                    result?.campaign?.target_location || "",
-                                  location:
-                                    result?.campaign?.target_location || "",
-                                  service_offer:
-                                    result?.campaign?.service_offer || "",
-                                  service_offered:
-                                    result?.campaign?.service_offer || "",
-                                  serviceOffered:
-                                    result?.campaign?.service_offer || "",
-                                  target_business:
-                                    inferTargetBusiness(
-                                      result?.campaign?.lead_search_keyword || ""
-                                    ),
-                                  targetBusiness:
-                                    inferTargetBusiness(
-                                      result?.campaign?.lead_search_keyword || ""
-                                    ),
-                                  leads_requested:
-                                    result?.campaign?.leads_requested ?? 20,
-                                };
+                      <p className="mt-3 text-sm leading-6 text-slate-300">
+                        Run now to generate leads, outreach, analysis, and PDF
+                        audit reports.
+                      </p>
 
-                                const response = await fetch(
-                                  `/api/campaigns/${campaignId}/run`,
-                                  {
-                                    method: "POST",
-                                    headers: {
-                                      "Content-Type": "application/json",
-                                    },
-                                    body: JSON.stringify(runPayload),
-                                  }
-                                );
-                                const data = await response.json();
+                      {campaignId ? (
+                        <button
+                          type="button"
+                          onClick={runCampaignNow}
+                          disabled={runLoading}
+                          className="mt-5 inline-flex w-full items-center justify-center rounded-full bg-cyan-300 px-6 py-3 text-sm font-black text-slate-950 shadow-xl shadow-cyan-300/20 transition hover:bg-cyan-200 disabled:cursor-not-allowed disabled:opacity-70"
+                        >
+                          {runLoading
+                            ? "Starting campaign..."
+                            : "Run Campaign Now →"}
+                        </button>
+                      ) : null}
 
-                                if (!response.ok || !data.success) {
-                                  throw new Error(
-                                    data.error || "Failed to start campaign."
-                                  );
-                                }
-
-                                router.push(`/campaigns/${campaignId}/results`);
-                              } catch (error) {
-                                setRunError(
-                                  error instanceof Error
-                                    ? error.message
-                                    : "Unable to start campaign."
-                                );
-                              } finally {
-                                setRunLoading(false);
-                              }
-                            }}
-                            className="mt-4 inline-flex w-full items-center justify-center rounded-2xl bg-cyan-300 px-6 py-3 text-sm font-semibold text-slate-950 transition hover:bg-cyan-200 disabled:cursor-not-allowed disabled:opacity-70"
-                            disabled={runLoading}
-                          >
-                            {runLoading ? "Starting campaign..." : "Run Campaign Now"}
-                          </button>
-                          {runError && (
-                            <p className="mt-3 text-sm text-rose-100">
-                              {runError}
-                            </p>
-                          )}
-                        </div>
-                      )}
+                      {runError ? (
+                        <p className="mt-3 rounded-2xl border border-rose-300/20 bg-rose-300/10 p-3 text-sm text-rose-100">
+                          {runError}
+                        </p>
+                      ) : null}
                     </>
                   ) : (
                     <>
-                      <p className="font-semibold text-white">Unable to create campaign.</p>
-                      <p className="mt-2 text-slate-300">{result.error}</p>
+                      <p className="text-lg font-black text-white">
+                        Unable to create campaign.
+                      </p>
+                      <p className="mt-3 text-sm leading-6 text-slate-300">
+                        {result.error}
+                      </p>
                     </>
                   )}
                 </div>
-              </div>
+              </section>
+            ) : (
+              <section className="rounded-[2.25rem] border border-white/10 bg-slate-900/80 p-7 shadow-2xl shadow-cyan-950/20">
+                <p className="text-xs font-black uppercase tracking-[0.24em] text-cyan-300">
+                  Output preview
+                </p>
+
+                <div className="mt-5 grid gap-3">
+                  <PreviewItem
+                    label="Lead list"
+                    value="Business name, maps, website, contact data."
+                  />
+                  <PreviewItem
+                    label="AI analysis"
+                    value="Score, quality, problems, opportunity angle."
+                  />
+                  <PreviewItem
+                    label="Sales assets"
+                    value="PDF audit report and personalized outreach."
+                  />
+                </div>
+              </section>
             )}
           </aside>
         </div>
       </div>
+      </PageReveal>
     </main>
   );
 }
 
-function Field({
-  label,
-  children,
-}: {
-  label: string;
-  children: React.ReactNode;
-}) {
+function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
     <label className="block">
-      <span className="mb-2 block text-sm font-medium text-slate-200">
+      <span className="mb-2 block text-sm font-bold text-slate-200">
         {label}
       </span>
       {children}
@@ -434,16 +479,28 @@ function WorkflowStep({
   description: string;
 }) {
   return (
-    <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-4">
-      <div className="flex items-center gap-3">
-        <span className="flex h-9 w-9 items-center justify-center rounded-2xl bg-cyan-300/10 text-sm font-semibold text-cyan-200">
+    <div className="relative rounded-3xl border border-white/10 bg-white/[0.04] p-4">
+      <div className="flex gap-3">
+        <span className="relative z-10 flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-cyan-300 text-sm font-black text-slate-950">
           {number}
         </span>
+
         <div>
-          <p className="text-sm font-semibold text-white">{title}</p>
-          <p className="mt-1 text-sm leading-6 text-slate-300">{description}</p>
+          <p className="text-sm font-black text-white">{title}</p>
+          <p className="mt-1 text-sm leading-6 text-slate-400">
+            {description}
+          </p>
         </div>
       </div>
+    </div>
+  );
+}
+
+function PreviewItem({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-3xl border border-white/10 bg-slate-950/60 p-4">
+      <p className="text-sm font-black text-white">{label}</p>
+      <p className="mt-1 text-sm leading-6 text-slate-400">{value}</p>
     </div>
   );
 }

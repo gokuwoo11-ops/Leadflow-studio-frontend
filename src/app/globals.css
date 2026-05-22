@@ -2,7 +2,7 @@
 
 :root {
   --background: #020617;
-  --foreground: #e5e7eb;
+  --foreground: #e5f7ff;
 }
 
 @theme inline {
@@ -23,15 +23,75 @@ html {
 body {
   min-height: 100vh;
   background:
-    radial-gradient(circle at top left, rgba(34, 211, 238, 0.16), transparent 34rem),
-    radial-gradient(circle at top right, rgba(59, 130, 246, 0.14), transparent 32rem),
-    radial-gradient(circle at bottom, rgba(14, 165, 233, 0.08), transparent 34rem),
+    radial-gradient(circle at 15% 10%, rgba(34, 211, 238, 0.18), transparent 32rem),
+    radial-gradient(circle at 80% 20%, rgba(59, 130, 246, 0.14), transparent 30rem),
+    radial-gradient(circle at 50% 100%, rgba(14, 165, 233, 0.1), transparent 36rem),
     #020617;
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
 
 ::selection {
-  background: rgba(34, 211, 238, 0.35);
+  background: rgba(34, 211, 238, 0.4);
   color: #ffffff;
+}
+
+@keyframes orbitSlow {
+  from {
+    transform: translate(-50%, -50%) rotate(0deg);
+  }
+  to {
+    transform: translate(-50%, -50%) rotate(360deg);
+  }
+}
+
+@keyframes orbitReverse {
+  from {
+    transform: translate(-50%, -50%) rotate(360deg);
+  }
+  to {
+    transform: translate(-50%, -50%) rotate(0deg);
+  }
+}
+
+@keyframes pulseGlow {
+  0%, 100% {
+    box-shadow: 0 0 70px rgba(34, 211, 238, 0.18);
+  }
+  50% {
+    box-shadow: 0 0 130px rgba(34, 211, 238, 0.42);
+  }
+}
+
+@keyframes scanMove {
+  0% {
+    transform: translateY(-120%);
+    opacity: 0;
+  }
+  25% {
+    opacity: 0.85;
+  }
+  75% {
+    opacity: 0.85;
+  }
+  100% {
+    transform: translateY(560px);
+    opacity: 0;
+  }
+}
+
+.animate-orbit-slow {
+  animation: orbitSlow 22s linear infinite;
+}
+
+.animate-orbit-reverse {
+  animation: orbitReverse 30s linear infinite;
+}
+
+.animate-pulse-glow {
+  animation: pulseGlow 4s ease-in-out infinite;
+}
+
+.animate-scan-move {
+  animation: scanMove 5.5s ease-in-out infinite;
 }

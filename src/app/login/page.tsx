@@ -1,202 +1,250 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState, type FormEvent } from "react";
+import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase/client";
+import LoginVisual from "@/components/LoginVisual";
 
-type StatusMessage = {
-  type: "success" | "error";
-  text: string;
-} | null;
+type StatusState =
+  | { type: "success"; text: string }
+  | { type: "error"; text: string }
+  | null;
 
 export default function LoginPage() {
   const router = useRouter();
+
+  const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [status, setStatus] = useState<StatusMessage>(null);
   const [loading, setLoading] = useState(false);
+  const [status, setStatus] = useState<StatusState>(null);
 
-  useEffect(() => {
-    const checkSession = async () => {
-      const { data } = await supabase.auth.getSession();
-      if (data.session) {
-        router.replace("/campaigns");
-      }
-    };
+  const handleSignIn = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setLoading(true);
+    setStatus(null);
 
-    checkSession();
-  }, [router]);
-const handleSignIn = async (event: FormEvent<HTMLFormElement>) => {
-  event.preventDefault();
-  setLoading(true);
-  setStatus(null);
+    const { error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
 
-  const normalizedEmail = email.trim().toLowerCase();
+    setLoading(false);
 
-  const { error } = await supabase.auth.signInWithPassword({
-    email: normalizedEmail,
-    password,
-  });
+    if (error) {
+      setStatus({ type: "error", text: error.message });
+      return;
+    }
 
-  setLoading(false);
+    router.push("/campaigns");
+  };
 
-  if (error) {
-    setStatus({ type: "error", text: error.message });
-    return;
-  }
+  const handleSignUp = async () => {
+    setLoading(true);
+    setStatus(null);
 
-  router.push("/campaigns");
-};
+    const { error, data } = await supabase.auth.signUp({
+      email,
+      password,
+    });
 
-const handleSignUp = async () => {
-  setLoading(true);
-  setStatus(null);
+    setLoading(false);
 
-  const normalizedEmail = email.trim().toLowerCase();
+    if (error) {
+      setStatus({ type: "error", text: error.message });
+      return;
+    }
 
-  const { error, data } = await supabase.auth.signUp({
-    email: normalizedEmail,
-    password,
-  });
+    if (data?.user && !data.session) {
+      setStatus({
+        type: "success",
+        text: "Account created. Check your inbox if email confirmation is enabled, then sign in.",
+      });
+      return;
+    }
 
-  setLoading(false);
-
-  if (error) {
-    setStatus({ type: "error", text: error.message });
-    return;
-  }
-
-  if (data?.user && !data.session) {
     setStatus({
       type: "success",
-      text: "Account created. Now try signing in.",
+      text: "Account created successfully. Redirecting to dashboard...",
     });
-    return;
-  }
 
-  setStatus({
-    type: "success",
-    text: "Signed up successfully. Redirecting to your dashboard...",
-  });
+    router.push("/campaigns");
+  };
 
-  router.push("/campaigns");
-};
   return (
-    <main className="min-h-screen bg-slate-950 px-6 py-10 text-white lg:px-10">
-      <div className="mx-auto flex w-full max-w-5xl flex-col gap-8">
-        <div className="flex flex-col gap-3 rounded-[2rem] border border-white/10 bg-slate-900/80 p-6 shadow-2xl shadow-cyan-950/20 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.28em] text-cyan-300">
-              Secure access
-            </p>
-            <h1 className="mt-3 text-3xl font-bold text-white sm:text-4xl">
-              Login to LeadFlow Studio
-            </h1>
-            <p className="mt-4 max-w-2xl text-sm leading-7 text-slate-400 sm:text-base">
-              Access your campaigns and results with Supabase authentication. If you are new, sign up below to get started.
-            </p>
-          </div>
-          <Link
-            href="/"
-            className="inline-flex w-fit items-center justify-center rounded-2xl border border-white/15 bg-white/[0.04] px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/[0.08]"
-          >
-            Back to Home
-          </Link>
-        </div>
+    <main className="min-h-screen overflow-hidden bg-slate-950 px-6 py-8 text-white lg:px-10">
+      <div className="pointer-events-none fixed inset-0">
+        <div className="absolute left-[-12rem] top-[-12rem] h-[34rem] w-[34rem] rounded-full bg-cyan-300/20 blur-3xl" />
+        <div className="absolute right-[-16rem] top-[8rem] h-[32rem] w-[32rem] rounded-full bg-blue-500/15 blur-3xl" />
+        <div className="absolute bottom-[-16rem] left-1/2 h-[34rem] w-[34rem] -translate-x-1/2 rounded-full bg-cyan-300/10 blur-3xl" />
+        <div className="absolute inset-0 bg-[linear-gradient(to_right,rgba(255,255,255,0.03)_1px,transparent_1px),linear-gradient(to_bottom,rgba(255,255,255,0.03)_1px,transparent_1px)] bg-[size:80px_80px] opacity-20" />
+      </div>
 
-        <div className="grid gap-8 lg:grid-cols-[0.95fr_0.65fr]">
-          <section className="rounded-[2rem] border border-white/10 bg-slate-900/80 p-8 shadow-2xl shadow-cyan-950/20">
-            <div className="space-y-6">
+      <div className="relative mx-auto grid min-h-[calc(100vh-4rem)] max-w-7xl items-center gap-8 lg:grid-cols-[0.9fr_1.1fr]">
+        <section className="rounded-[2.5rem] border border-white/10 bg-slate-900/80 p-7 shadow-2xl shadow-cyan-950/30 sm:p-8">
+          <div className="mb-8 flex items-center justify-between">
+            <Link href="/" className="group flex items-center gap-3">
+              <div className="flex h-11 w-11 items-center justify-center rounded-full border border-cyan-300/40 bg-cyan-300/10 text-sm font-black text-cyan-200 shadow-lg shadow-cyan-950/30">
+                LF
+              </div>
+
               <div>
-                <p className="text-xs uppercase tracking-[0.24em] text-cyan-300">Account login</p>
-                <h2 className="mt-3 text-3xl font-semibold text-white">Sign in or create a new account</h2>
-                <p className="mt-3 text-sm leading-7 text-slate-400">
-                  Use your email and password to unlock campaign access, protected routes, and your saved results.
+                <p className="text-sm font-bold tracking-wide text-white">
+                  LeadFlow Studio
                 </p>
+                <p className="text-xs text-slate-400">AI Prospecting System</p>
               </div>
+            </Link>
 
-              {status ? (
-                <div
-                  className={`rounded-3xl border px-5 py-4 text-sm ${
-                    status.type === "success"
-                      ? "border-emerald-400/20 bg-emerald-400/10 text-emerald-100"
-                      : "border-rose-400/20 bg-rose-400/10 text-rose-100"
-                  }`}
-                >
-                  {status.text}
-                </div>
-              ) : null}
+            <Link
+              href="/"
+              className="rounded-full border border-white/15 bg-white/[0.04] px-4 py-2 text-xs font-black text-white transition hover:border-cyan-300/40 hover:bg-cyan-300/10"
+            >
+              Back Home
+            </Link>
+          </div>
 
-              <form onSubmit={handleSignIn} className="space-y-6">
-                <div className="grid gap-5 sm:grid-cols-2">
-                  <label className="space-y-2 text-sm text-slate-300">
-                    <span>Email</span>
-                    <input
-                      value={email}
-                      onChange={(event) => setEmail(event.target.value)}
-                      type="email"
-                      placeholder="you@example.com"
-                      className="w-full rounded-2xl border border-white/10 bg-slate-950/90 px-4 py-3 text-sm text-white outline-none transition focus:border-cyan-300 focus:ring-2 focus:ring-cyan-300/30"
-                      required
-                    />
-                  </label>
+          <p className="text-xs font-black uppercase tracking-[0.28em] text-cyan-300">
+            Secure access
+          </p>
 
-                  <label className="space-y-2 text-sm text-slate-300">
-                    <span>Password</span>
-                    <input
-                      value={password}
-                      onChange={(event) => setPassword(event.target.value)}
-                      type="password"
-                      placeholder="Enter your password"
-                      className="w-full rounded-2xl border border-white/10 bg-slate-950/90 px-4 py-3 text-sm text-white outline-none transition focus:border-cyan-300 focus:ring-2 focus:ring-cyan-300/30"
-                      required
-                    />
-                  </label>
-                </div>
+          <h1 className="mt-3 text-4xl font-black tracking-[-0.05em] text-white sm:text-5xl">
+            Access your AI prospecting workspace.
+          </h1>
 
-                <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
-                  <button
-                    type="submit"
-                    disabled={loading}
-                    className="inline-flex min-w-[180px] items-center justify-center rounded-2xl bg-cyan-300 px-6 py-4 text-sm font-semibold text-slate-950 transition hover:bg-cyan-200 disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    {loading ? "Signing in..." : "Sign In"}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleSignUp}
-                    disabled={loading}
-                    className="inline-flex min-w-[180px] items-center justify-center rounded-2xl border border-white/15 bg-white/[0.04] px-6 py-4 text-sm font-semibold text-white transition hover:bg-white/[0.08] disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    {loading ? "Please wait..." : "Sign Up"}
-                  </button>
-                </div>
-              </form>
-            </div>
-          </section>
+          <p className="mt-4 max-w-xl text-sm leading-7 text-slate-300">
+            Sign in to create campaigns, generate leads, review PDF audit
+            reports, and manage outreach from one place.
+          </p>
 
-          <aside className="space-y-6 rounded-[2rem] border border-white/10 bg-slate-900/80 p-7 shadow-2xl shadow-cyan-950/20">
-            <div className="rounded-[1.75rem] bg-slate-950/70 p-6">
-              <p className="text-xs uppercase tracking-[0.24em] text-cyan-300">Why login?</p>
-              <h3 className="mt-4 text-2xl font-semibold text-white">Secure access to your campaigns</h3>
-              <p className="mt-4 text-sm leading-7 text-slate-400">
-                A Supabase-backed login gives you a secure session to manage campaigns, view results, and keep your SaaS workflow private.
-              </p>
-            </div>
-            <div className="grid gap-4 rounded-[1.75rem] border border-white/10 bg-slate-950/80 p-6">
-              <div>
-                <p className="text-sm font-semibold text-white">Protected routes</p>
-                <p className="mt-2 text-sm text-slate-400">/campaigns, /campaigns/new, and campaign results are only available after login.</p>
+          <div className="mt-8 inline-flex rounded-full border border-white/10 bg-slate-950/70 p-1">
+            <button
+              type="button"
+              onClick={() => {
+                setMode("signin");
+                setStatus(null);
+              }}
+              className={`rounded-full px-5 py-2 text-sm font-black transition ${
+                mode === "signin"
+                  ? "bg-cyan-300 text-slate-950"
+                  : "text-slate-300 hover:text-white"
+              }`}
+            >
+              Sign In
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setMode("signup");
+                setStatus(null);
+              }}
+              className={`rounded-full px-5 py-2 text-sm font-black transition ${
+                mode === "signup"
+                  ? "bg-cyan-300 text-slate-950"
+                  : "text-slate-300 hover:text-white"
+              }`}
+            >
+              Sign Up
+            </button>
+          </div>
+
+          <form onSubmit={handleSignIn} className="mt-8 space-y-5">
+            <Field label="Email address">
+              <input
+                type="email"
+                required
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
+                placeholder="you@example.com"
+                className="w-full rounded-2xl border border-white/10 bg-slate-950/80 px-4 py-3 text-sm text-white placeholder:text-slate-500 outline-none transition focus:border-cyan-300 focus:ring-2 focus:ring-cyan-300/25"
+              />
+            </Field>
+
+            <Field label="Password">
+              <input
+                type="password"
+                required
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                placeholder="Enter your password"
+                className="w-full rounded-2xl border border-white/10 bg-slate-950/80 px-4 py-3 text-sm text-white placeholder:text-slate-500 outline-none transition focus:border-cyan-300 focus:ring-2 focus:ring-cyan-300/25"
+              />
+            </Field>
+
+            {status ? (
+              <div
+                className={`rounded-2xl border p-4 text-sm ${
+                  status.type === "success"
+                    ? "border-emerald-300/20 bg-emerald-300/10 text-emerald-100"
+                    : "border-rose-300/20 bg-rose-300/10 text-rose-100"
+                }`}
+              >
+                {status.text}
               </div>
-              <div>
-                <p className="text-sm font-semibold text-white">Email + password</p>
-                <p className="mt-2 text-sm text-slate-400">Sign in with credentials or create a new account instantly.</p>
-              </div>
+            ) : null}
+
+            {mode === "signin" ? (
+              <button
+                type="submit"
+                disabled={loading}
+                className="inline-flex w-full items-center justify-center rounded-full bg-cyan-300 px-6 py-4 text-sm font-black text-slate-950 shadow-2xl shadow-cyan-300/20 transition hover:-translate-y-0.5 hover:bg-cyan-200 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {loading ? "Signing in..." : "Sign In →"}
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={handleSignUp}
+                disabled={loading}
+                className="inline-flex w-full items-center justify-center rounded-full bg-cyan-300 px-6 py-4 text-sm font-black text-slate-950 shadow-2xl shadow-cyan-300/20 transition hover:-translate-y-0.5 hover:bg-cyan-200 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {loading ? "Creating account..." : "Create Account →"}
+              </button>
+            )}
+          </form>
+
+          <div className="mt-8 rounded-[1.75rem] border border-white/10 bg-slate-950/60 p-5">
+            <p className="text-sm font-black text-white">Inside your workspace</p>
+            <div className="mt-4 grid gap-3 sm:grid-cols-3">
+              <MiniCard title="Campaigns" text="Launch targeted prospecting campaigns." />
+              <MiniCard title="Reports" text="Generate AI audit PDFs instantly." />
+              <MiniCard title="Outreach" text="Copy personalized sales messages." />
             </div>
-          </aside>
+          </div>
+        </section>
+
+        <div className="hidden lg:block">
+          <LoginVisual />
         </div>
       </div>
     </main>
+  );
+}
+
+function Field({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <label className="block">
+      <span className="mb-2 block text-sm font-bold text-slate-200">
+        {label}
+      </span>
+      {children}
+    </label>
+  );
+}
+
+function MiniCard({ title, text }: { title: string; text: string }) {
+  return (
+    <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
+      <p className="text-sm font-black text-white">{title}</p>
+      <p className="mt-2 text-xs leading-6 text-slate-400">{text}</p>
+    </div>
   );
 }
