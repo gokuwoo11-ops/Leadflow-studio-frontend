@@ -19,7 +19,29 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState<StatusState>(null);
+async function handleGoogleSignIn() {
+  setLoading(true);
+  setStatus({
+    type: "success",
+    text: "Opening Google sign in...",
+  });
 
+  const origin = window.location.origin;
+
+  const { error } = await supabase.auth.signInWithOAuth({
+  provider: "google",
+  options: {
+    redirectTo: `${origin}/campaigns`,
+    queryParams: {
+      prompt: "select_account",
+    },
+  },
+});
+  if (error) {
+    setLoading(false);
+    setStatus({ type: "error", text: error.message });
+  }
+}
   const handleSignIn = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
@@ -40,15 +62,16 @@ export default function LoginPage() {
       return;
     }
 
-    router.push("/campaigns");
-    router.refresh();
+    router.replace("/campaigns");
   };
 
-  const handleSignUp = async () => {
+  const handleSignUp = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
     setLoading(true);
     setStatus({
       type: "success",
-      text: "Creating account... redirecting to dashboard.",
+      text: "Creating account...",
     });
 
     const { error } = await supabase.auth.signUp({
@@ -62,15 +85,12 @@ export default function LoginPage() {
       return;
     }
 
+    setLoading(false);
     setStatus({
       type: "success",
-      text: "Account created successfully. Redirecting to dashboard...",
+      text: "Account created! Check your email to confirm your address.",
     });
-
-    router.push("/campaigns");
-    router.refresh();
   };
-
   return (
     <main className="min-h-screen overflow-hidden bg-slate-950 px-6 py-8 text-white lg:px-10">
       <div className="pointer-events-none fixed inset-0">
@@ -148,8 +168,29 @@ export default function LoginPage() {
               Sign Up
             </button>
           </div>
+          <div className="mt-8">
+  <button
+    type="button"
+    onClick={handleGoogleSignIn}
+    disabled={loading}
+    className="flex w-full items-center justify-center gap-3 rounded-full border border-white/10 bg-white px-6 py-4 text-sm font-black text-slate-950 shadow-2xl shadow-cyan-950/20 transition hover:-translate-y-0.5 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
+  >
+    <span className="flex h-6 w-6 items-center justify-center rounded-full border border-slate-200 text-xs font-black">
+      G
+    </span>
+    Continue with Google
+  </button>
 
-          <form onSubmit={handleSignIn} className="mt-8 space-y-5">
+  <div className="my-6 flex items-center gap-3">
+    <div className="h-px flex-1 bg-white/10" />
+    <span className="text-xs font-bold uppercase tracking-[0.2em] text-slate-500">
+      or
+    </span>
+    <div className="h-px flex-1 bg-white/10" />
+  </div>
+</div>
+
+          <form onSubmit={mode === "signin" ? handleSignIn : handleSignUp} className="mt-8 space-y-5">
             <Field label="Email address">
               <input
                 type="email"
@@ -194,8 +235,7 @@ export default function LoginPage() {
               </button>
             ) : (
               <button
-                type="button"
-                onClick={handleSignUp}
+                type="submit"
                 disabled={loading}
                 className="inline-flex w-full items-center justify-center rounded-full bg-cyan-300 px-6 py-4 text-sm font-black text-slate-950 shadow-2xl shadow-cyan-300/20 transition hover:-translate-y-0.5 hover:bg-cyan-200 disabled:cursor-not-allowed disabled:opacity-60"
               >

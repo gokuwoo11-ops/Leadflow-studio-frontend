@@ -2,7 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createServerSupabase } from "@/lib/supabase/server";
 import DeleteCampaignButton from "./DeleteCampaignButton";
-
+import AccountMenu from "@/components/AccountMenu";
 type Row = Record<string, any>;
 
 function normalizeStatus(value?: string | null) {
@@ -205,10 +205,12 @@ export default async function CampaignsPage() {
             </div>
 
             <div className="flex flex-wrap gap-3">
+              <AccountMenu email={user.email} />
               <Link
                 href="/"
                 className="rounded-full border border-white/15 bg-white/[0.04] px-5 py-3 text-sm font-black text-white transition hover:-translate-y-0.5 hover:border-cyan-300/40 hover:bg-cyan-300/10"
               >
+                
                 Back to Home
               </Link>
 
