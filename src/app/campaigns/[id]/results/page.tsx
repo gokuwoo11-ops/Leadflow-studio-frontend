@@ -6,6 +6,7 @@ import RetryLeadButton from "./RetryLeadButton";
 import AutoRefresh from "./AutoRefresh";
 import LeadStatusSelect from "./LeadStatusSelect";
 import CopyAllOutreachButton from "./CopyAllOutreachButton";
+import ExportCsvButton from "./ExportCsvButton";
 
 type PageProps = {
   params: Promise<{ id: string }>;
@@ -103,6 +104,7 @@ const shouldAutoRefresh =
   Back to campaigns
 </Link>
  <CopyAllOutreachButton text={allOutreachText} />
+ <ExportCsvButton results={results} />
 
             
           </div>

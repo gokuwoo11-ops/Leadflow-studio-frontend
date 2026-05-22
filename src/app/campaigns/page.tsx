@@ -131,27 +131,37 @@ export default async function CampaignsPage() {
   return (
     <main className="min-h-screen bg-slate-950 px-6 py-8 text-white lg:px-10">
       <div className="mx-auto max-w-6xl space-y-8">
-        <header className="flex flex-col gap-5 rounded-[2rem] border border-white/10 bg-slate-900/80 p-6 shadow-2xl shadow-cyan-950/20 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.26em] text-cyan-300">
-              LeadFlow Studio
-            </p>
-            <h1 className="mt-3 text-3xl font-bold text-white sm:text-4xl">
-              Campaign Dashboard
-            </h1>
-            <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-300">
-              Track real campaign results, generated leads, AI analysis, outreach messages, and PDF audit reports.
-            </p>
-          </div>
+      <header className="flex flex-col gap-5 rounded-[2rem] border border-white/10 bg-slate-900/80 p-6 shadow-2xl shadow-cyan-950/20 sm:flex-row sm:items-center sm:justify-between">
+  <div>
+    <p className="text-xs font-semibold uppercase tracking-[0.26em] text-cyan-300">
+      LeadFlow Studio
+    </p>
 
-          <Link
-            href="/campaigns/new"
-            className="rounded-2xl bg-cyan-300 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-cyan-200"
-          >
-            Create New Campaign
-          </Link>
-        </header>
+    <h1 className="mt-3 text-3xl font-bold text-white sm:text-4xl">
+      Campaign Dashboard
+    </h1>
 
+    <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-300">
+      Track real campaign results, generated leads, AI analysis, outreach messages, and PDF audit reports.
+    </p>
+  </div>
+
+  <div className="flex flex-wrap gap-3">
+    <Link
+      href="/"
+      className="rounded-2xl border border-white/15 bg-white/[0.04] px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/[0.08]"
+    >
+      Back to Home
+    </Link>
+
+    <Link
+      href="/campaigns/new"
+      className="rounded-2xl bg-cyan-300 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-cyan-200"
+    >
+      Create New Campaign
+    </Link>
+  </div>
+</header>
         <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <MetricCard label="Campaigns" value={String(campaigns.length)} />
           <MetricCard label="Completed" value={String(completedCampaigns)} />
