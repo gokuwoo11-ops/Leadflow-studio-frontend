@@ -5,6 +5,7 @@ import CopyButton from "./CopyButton";
 import RetryLeadButton from "./RetryLeadButton";
 import AutoRefresh from "./AutoRefresh";
 import LeadStatusSelect from "./LeadStatusSelect";
+import CopyAllOutreachButton from "./CopyAllOutreachButton";
 
 type PageProps = {
   params: Promise<{ id: string }>;
@@ -59,6 +60,25 @@ const shouldAutoRefresh =
   hasProcessingLeads ||
   campaign.status === "running" ||
   campaign.status === "processing";
+  const allOutreachText = results
+  .map((item, index) => {
+    const lead = item.lead || {};
+    const outreach = item.outreach || {};
+    const report = item.report || {};
+
+    const parts = [
+      `#${index + 1} - ${lead.business_name || "Unnamed lead"}`,
+      outreach.subject ? `Subject: ${outreach.subject}` : "",
+      outreach.opening_line || "",
+      outreach.email_body || "",
+      outreach.call_to_action || "",
+      report.pdf_url ? `PDF Audit: ${report.pdf_url}` : "",
+    ].filter(Boolean);
+
+    return parts.join("\n\n");
+  })
+  .filter(Boolean)
+  .join("\n\n-----------------------------\n\n");
   return (
     <main className="min-h-screen bg-slate-950 px-6 py-8 text-white lg:px-10">
       <div className="mx-auto max-w-6xl space-y-8">
@@ -82,6 +102,8 @@ const shouldAutoRefresh =
 >
   Back to campaigns
 </Link>
+ <CopyAllOutreachButton text={allOutreachText} />
+
             
           </div>
         </header>
