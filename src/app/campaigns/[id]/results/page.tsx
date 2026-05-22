@@ -110,6 +110,25 @@ try {
     hasProcessingLeads ||
     campaign.status === "running" ||
     campaign.status === "processing";
+    const processedCount = results.filter(
+  (item) => item?.lead?.processing_status === "processed"
+).length;
+
+const processingCount = results.filter(
+  (item) => item?.lead?.processing_status === "processing"
+).length;
+
+const failedCount = results.filter(
+  (item) => item?.lead?.processing_status === "failed"
+).length;
+
+const totalCount = results.length;
+
+const progressPercent =
+  totalCount > 0 ? Math.round((processedCount / totalCount) * 100) : 0;
+
+const showProcessingBanner =
+  shouldAutoRefresh || processingCount > 0 || campaign.status === "processing";
 
   const allOutreachText = results
     .map((item, index) => {
@@ -178,6 +197,15 @@ try {
         </header>
 
         <AutoRefresh enabled={shouldAutoRefresh} />
+        {showProcessingBanner ? (
+  <ProcessingBanner
+    totalCount={totalCount}
+    processedCount={processedCount}
+    processingCount={processingCount}
+    failedCount={failedCount}
+    progressPercent={progressPercent}
+  />
+) : null}
 
         <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
           <MetricCard
@@ -438,6 +466,92 @@ function SmallInfo({ label, value }: { label: string; value: string }) {
       <p className="mt-2 break-words text-sm font-black text-slate-200">
         {value}
       </p>
+    </div>
+  );
+}
+function ProcessingBanner({
+  totalCount,
+  processedCount,
+  processingCount,
+  failedCount,
+  progressPercent,
+}: {
+  totalCount: number;
+  processedCount: number;
+  processingCount: number;
+  failedCount: number;
+  progressPercent: number;
+}) {
+  return (
+    <section className="relative overflow-hidden rounded-[2.5rem] border border-cyan-300/20 bg-cyan-300/10 p-6 shadow-2xl shadow-cyan-950/30">
+      <div className="pointer-events-none absolute -right-20 -top-20 h-56 w-56 rounded-full bg-cyan-300/20 blur-3xl" />
+
+      <div className="relative flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+        <div className="max-w-3xl">
+          <div className="flex items-center gap-3">
+            <span className="relative flex h-4 w-4">
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-cyan-300 opacity-75" />
+              <span className="relative inline-flex h-4 w-4 rounded-full bg-cyan-300" />
+            </span>
+
+            <p className="text-xs font-black uppercase tracking-[0.28em] text-cyan-200">
+              Campaign processing
+            </p>
+          </div>
+
+          <h2 className="mt-4 text-3xl font-black tracking-[-0.04em] text-white">
+            Lead generation is still running.
+          </h2>
+
+          <p className="mt-3 text-sm leading-7 text-slate-300">
+            We are finding leads, analyzing businesses, writing outreach, and
+            generating PDF audit reports. This usually takes 1–2 minutes depending
+            on the number of leads and backend wake-up time.
+          </p>
+        </div>
+
+        <div className="grid min-w-[260px] grid-cols-2 gap-3">
+          <ProcessingStat label="Completed" value={String(processedCount)} />
+          <ProcessingStat label="Processing" value={String(processingCount)} />
+          <ProcessingStat label="Failed" value={String(failedCount)} />
+          <ProcessingStat label="Total" value={String(totalCount)} />
+        </div>
+      </div>
+
+      <div className="relative mt-6">
+        <div className="mb-2 flex items-center justify-between text-xs font-bold text-slate-300">
+          <span>Progress</span>
+          <span>{progressPercent}%</span>
+        </div>
+
+        <div className="h-3 overflow-hidden rounded-full bg-slate-950/80">
+          <div
+            className="h-full rounded-full bg-cyan-300 transition-all duration-700"
+            style={{ width: `${Math.max(progressPercent, 8)}%` }}
+          />
+        </div>
+      </div>
+
+      <div className="relative mt-5 rounded-2xl border border-white/10 bg-slate-950/60 p-4">
+        <p className="text-sm font-bold text-cyan-100">
+          Auto-refresh is active. You can keep this page open.
+        </p>
+        <p className="mt-1 text-xs leading-5 text-slate-400">
+          New completed leads, outreach messages, and PDF links will appear here
+          as soon as they are saved.
+        </p>
+      </div>
+    </section>
+  );
+}
+
+function ProcessingStat({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-2xl border border-white/10 bg-slate-950/70 p-4 text-center">
+      <p className="text-xs uppercase tracking-[0.16em] text-slate-500">
+        {label}
+      </p>
+      <p className="mt-2 text-2xl font-black text-white">{value}</p>
     </div>
   );
 }
