@@ -27,6 +27,13 @@ type CreateCampaignResponse = {
   error?: string;
 };
 
+function inferTargetBusiness(searchKeyword: string) {
+  const keyword = String(searchKeyword || "").trim();
+  if (!keyword) return "";
+  const match = keyword.match(/^(.*?)\s+(?:in|near|around)\s+/i);
+  return match ? match[1].trim() : keyword;
+}
+
 export default function NewCampaignPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
@@ -46,19 +53,32 @@ export default function NewCampaignPage() {
     const form = event.currentTarget;
     const formData = new FormData(form);
 
+    const leadSearchKeyword = String(formData.get("lead_search_keyword") || "");
+    const serviceOffer = String(formData.get("service_offer") || "");
+    const idealTargetCustomer = String(
+      formData.get("ideal_target_customer") || ""
+    );
+    const targetLocation = String(formData.get("target_location") || "");
+    const inferredTargetBusiness = inferTargetBusiness(leadSearchKeyword);
+
     const payload = {
       client_business_name: String(formData.get("client_business_name") || ""),
       sender_name: String(formData.get("sender_name") || ""),
       sender_email: String(formData.get("sender_email") || ""),
-      service_offer: String(formData.get("service_offer") || ""),
-      ideal_target_customer: String(
-        formData.get("ideal_target_customer") || ""
-      ),
-      target_location: String(formData.get("target_location") || ""),
+      service_offer: serviceOffer,
+      service_offered: serviceOffer,
+      serviceOffered: serviceOffer,
+      ideal_target_customer: idealTargetCustomer,
+      idealTargetCustomer,
+      niche: idealTargetCustomer,
+      target_location: targetLocation,
+      location: targetLocation,
       outreach_tone: String(formData.get("outreach_tone") || ""),
-      lead_search_keyword: String(
-        formData.get("lead_search_keyword") || ""
-      ),
+      lead_search_keyword: leadSearchKeyword,
+      search_keyword: leadSearchKeyword,
+      leadSearchKeyword: leadSearchKeyword,
+      target_business: inferredTargetBusiness,
+      targetBusiness: inferredTargetBusiness,
       leads_requested: Number(formData.get("leads_requested") || 10),
     };
 
@@ -288,6 +308,47 @@ export default function NewCampaignPage() {
                               setRunError(null);
 
                               try {
+                                const runPayload = {
+                                  campaign_id: campaignId,
+                                  campaignId: campaignId,
+                                  campaign_name:
+                                    result?.campaign?.client_business_name || "",
+                                  client_business_name:
+                                    result?.campaign?.client_business_name || "",
+                                  ideal_target_customer:
+                                    result?.campaign?.ideal_target_customer || "",
+                                  idealTargetCustomer:
+                                    result?.campaign?.ideal_target_customer || "",
+                                  niche:
+                                    result?.campaign?.ideal_target_customer || "",
+                                  lead_search_keyword:
+                                    result?.campaign?.lead_search_keyword || "",
+                                  search_keyword:
+                                    result?.campaign?.lead_search_keyword || "",
+                                  leadSearchKeyword:
+                                    result?.campaign?.lead_search_keyword || "",
+                                  target_location:
+                                    result?.campaign?.target_location || "",
+                                  location:
+                                    result?.campaign?.target_location || "",
+                                  service_offer:
+                                    result?.campaign?.service_offer || "",
+                                  service_offered:
+                                    result?.campaign?.service_offer || "",
+                                  serviceOffered:
+                                    result?.campaign?.service_offer || "",
+                                  target_business:
+                                    inferTargetBusiness(
+                                      result?.campaign?.lead_search_keyword || ""
+                                    ),
+                                  targetBusiness:
+                                    inferTargetBusiness(
+                                      result?.campaign?.lead_search_keyword || ""
+                                    ),
+                                  leads_requested:
+                                    result?.campaign?.leads_requested ?? 20,
+                                };
+
                                 const response = await fetch(
                                   `/api/campaigns/${campaignId}/run`,
                                   {
@@ -295,6 +356,7 @@ export default function NewCampaignPage() {
                                     headers: {
                                       "Content-Type": "application/json",
                                     },
+                                    body: JSON.stringify(runPayload),
                                   }
                                 );
                                 const data = await response.json();

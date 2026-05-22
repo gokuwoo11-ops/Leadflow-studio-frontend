@@ -26,13 +26,19 @@ export default function Home() {
               href="/campaigns/new"
               className="rounded-2xl bg-cyan-300 px-4 py-2 text-sm font-semibold text-slate-950 transition hover:bg-cyan-200"
             >
-              Start campaign
+              Create New Campaign
             </Link>
             <Link
               href="/campaigns"
               className="rounded-2xl border border-white/15 bg-white/[0.04] px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/[0.08]"
             >
-              View results
+              View Campaign Results
+            </Link>
+            <Link
+              href="/login"
+              className="rounded-2xl border border-white/15 bg-white/[0.04] px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/[0.08]"
+            >
+              Login
             </Link>
           </div>
         </nav>
