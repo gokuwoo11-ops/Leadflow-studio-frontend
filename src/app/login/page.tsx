@@ -1,8 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, useState } from "react";
-import { useRouter } from "next/navigation";
+import { FormEvent, ReactNode, useState } from "react";
 import { supabase } from "@/lib/supabase/client";
 import LoginVisual from "@/components/LoginVisual";
 
@@ -11,86 +10,180 @@ type StatusState =
   | { type: "error"; text: string }
   | null;
 
-export default function LoginPage() {
-  const router = useRouter();
+function getDashboardUrl() {
+  const params = new URLSearchParams(window.location.search);
+  const redirectedFrom = params.get("redirectedFrom");
 
+  if (
+    redirectedFrom &&
+    redirectedFrom.startsWith("/") &&
+    !redirectedFrom.startsWith("//")
+  ) {
+    return redirectedFrom;
+  }
+
+  return "/campaigns";
+}
+
+export default function LoginPage() {
   const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+
   const [loading, setLoading] = useState(false);
+  const [loadingAction, setLoadingAction] = useState<
+    "signin" | "signup" | "google" | null
+  >(null);
   const [status, setStatus] = useState<StatusState>(null);
-async function handleGoogleSignIn() {
-  setLoading(true);
-  setStatus({
-    type: "success",
-    text: "Opening Google sign in...",
-  });
 
-  const origin = window.location.origin;
+  async function handleGoogleSignIn() {
+    setLoading(true);
+    setLoadingAction("google");
+    setStatus({
+      type: "success",
+      text: "Opening Google account chooser...",
+    });
 
-  const { error } = await supabase.auth.signInWithOAuth({
-  provider: "google",
-  options: {
-    redirectTo: `${origin}/campaigns`,
-    queryParams: {
-      prompt: "select_account",
-    },
-  },
-});
-  if (error) {
-    setLoading(false);
-    setStatus({ type: "error", text: error.message });
+    const origin = window.location.origin;
+    const redirectTo = `${origin}${getDashboardUrl()}`;
+
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: {
+        redirectTo,
+        queryParams: {
+          prompt: "select_account",
+        },
+      },
+    });
+
+    if (error) {
+      setLoading(false);
+      setLoadingAction(null);
+      setStatus({ type: "error", text: error.message });
+    }
   }
-}
-  const handleSignIn = async (event: FormEvent<HTMLFormElement>) => {
+
+  async function handleSignIn(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
     setLoading(true);
+    setLoadingAction("signin");
     setStatus({
       type: "success",
       text: "Signing in... opening your dashboard.",
     });
 
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
+    try {
+      const loginPromise = supabase.auth.signInWithPassword({
+        email: email.trim(),
+        password,
+      });
 
-    if (error) {
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        window.setTimeout(() => {
+          reject(
+            new Error(
+              "Login is taking too long. Please check your internet connection and try again."
+            )
+          );
+        }, 12000);
+      });
+
+      const { error } = await Promise.race([loginPromise, timeoutPromise]);
+
+      if (error) {
+        setLoading(false);
+        setLoadingAction(null);
+        setStatus({ type: "error", text: error.message });
+        return;
+      }
+
+      setStatus({
+        type: "success",
+        text: "Login successful. Redirecting to dashboard...",
+      });
+
+      window.location.assign(getDashboardUrl());
+    } catch (error) {
       setLoading(false);
-      setStatus({ type: "error", text: error.message });
-      return;
+      setLoadingAction(null);
+      setStatus({
+        type: "error",
+        text:
+          error instanceof Error
+            ? error.message
+            : "Login failed. Please try again.",
+      });
     }
+  }
 
-    router.replace("/campaigns");
-  };
-
-  const handleSignUp = async (event: FormEvent<HTMLFormElement>) => {
+  async function handleSignUp(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
     setLoading(true);
+    setLoadingAction("signup");
     setStatus({
       type: "success",
-      text: "Creating account...",
+      text: "Creating your account...",
     });
 
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-    });
+    try {
+      const { error, data } = await supabase.auth.signUp({
+        email: email.trim(),
+        password,
+      });
 
-    if (error) {
+      if (error) {
+        setLoading(false);
+        setLoadingAction(null);
+        setStatus({ type: "error", text: error.message });
+        return;
+      }
+
+      if (data.session) {
+        setStatus({
+          type: "success",
+          text: "Account created. Redirecting to dashboard...",
+        });
+
+        window.location.assign("/campaigns");
+        return;
+      }
+
       setLoading(false);
-      setStatus({ type: "error", text: error.message });
-      return;
-    }
+      setLoadingAction(null);
+      setStatus({
+        type: "success",
+        text:
+          "Account created. If email confirmation is enabled, check your inbox, then sign in.",
+      });
 
-    setLoading(false);
-    setStatus({
-      type: "success",
-      text: "Account created! Check your email to confirm your address.",
-    });
-  };
+      setMode("signin");
+    } catch (error) {
+      setLoading(false);
+      setLoadingAction(null);
+      setStatus({
+        type: "error",
+        text:
+          error instanceof Error
+            ? error.message
+            : "Account creation failed. Please try again.",
+      });
+    }
+  }
+
+  const buttonText =
+    loadingAction === "google"
+      ? "Opening Google..."
+      : loadingAction === "signin"
+      ? "Opening dashboard..."
+      : loadingAction === "signup"
+      ? "Creating account..."
+      : mode === "signin"
+      ? "Sign In →"
+      : "Create Account →";
+
   return (
     <main className="min-h-screen overflow-hidden bg-slate-950 px-6 py-8 text-white lg:px-10">
       <div className="pointer-events-none fixed inset-0">
@@ -140,11 +233,12 @@ async function handleGoogleSignIn() {
           <div className="mt-8 inline-flex rounded-full border border-white/10 bg-slate-950/70 p-1">
             <button
               type="button"
+              disabled={loading}
               onClick={() => {
                 setMode("signin");
                 setStatus(null);
               }}
-              className={`rounded-full px-5 py-2 text-sm font-black transition ${
+              className={`rounded-full px-5 py-2 text-sm font-black transition disabled:cursor-not-allowed disabled:opacity-60 ${
                 mode === "signin"
                   ? "bg-cyan-300 text-slate-950"
                   : "text-slate-300 hover:text-white"
@@ -155,11 +249,12 @@ async function handleGoogleSignIn() {
 
             <button
               type="button"
+              disabled={loading}
               onClick={() => {
                 setMode("signup");
                 setStatus(null);
               }}
-              className={`rounded-full px-5 py-2 text-sm font-black transition ${
+              className={`rounded-full px-5 py-2 text-sm font-black transition disabled:cursor-not-allowed disabled:opacity-60 ${
                 mode === "signup"
                   ? "bg-cyan-300 text-slate-950"
                   : "text-slate-300 hover:text-white"
@@ -168,37 +263,44 @@ async function handleGoogleSignIn() {
               Sign Up
             </button>
           </div>
+
           <div className="mt-8">
-  <button
-    type="button"
-    onClick={handleGoogleSignIn}
-    disabled={loading}
-    className="flex w-full items-center justify-center gap-3 rounded-full border border-white/10 bg-white px-6 py-4 text-sm font-black text-slate-950 shadow-2xl shadow-cyan-950/20 transition hover:-translate-y-0.5 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
-  >
-    <span className="flex h-6 w-6 items-center justify-center rounded-full border border-slate-200 text-xs font-black">
-      G
-    </span>
-    Continue with Google
-  </button>
+            <button
+              type="button"
+              onClick={handleGoogleSignIn}
+              disabled={loading}
+              className="flex w-full items-center justify-center gap-3 rounded-full border border-white/10 bg-white px-6 py-4 text-sm font-black text-slate-950 shadow-2xl shadow-cyan-950/20 transition hover:-translate-y-0.5 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              <span className="flex h-6 w-6 items-center justify-center rounded-full border border-slate-200 text-xs font-black">
+                G
+              </span>
+              {loadingAction === "google"
+                ? "Opening Google..."
+                : "Continue with Google"}
+            </button>
 
-  <div className="my-6 flex items-center gap-3">
-    <div className="h-px flex-1 bg-white/10" />
-    <span className="text-xs font-bold uppercase tracking-[0.2em] text-slate-500">
-      or
-    </span>
-    <div className="h-px flex-1 bg-white/10" />
-  </div>
-</div>
+            <div className="my-6 flex items-center gap-3">
+              <div className="h-px flex-1 bg-white/10" />
+              <span className="text-xs font-bold uppercase tracking-[0.2em] text-slate-500">
+                or
+              </span>
+              <div className="h-px flex-1 bg-white/10" />
+            </div>
+          </div>
 
-          <form onSubmit={mode === "signin" ? handleSignIn : handleSignUp} className="mt-8 space-y-5">
+          <form
+            onSubmit={mode === "signin" ? handleSignIn : handleSignUp}
+            className="space-y-5"
+          >
             <Field label="Email address">
               <input
                 type="email"
                 required
                 value={email}
+                disabled={loading}
                 onChange={(event) => setEmail(event.target.value)}
                 placeholder="you@example.com"
-                className="w-full rounded-2xl border border-white/10 bg-slate-950/80 px-4 py-3 text-sm text-white placeholder:text-slate-500 outline-none transition focus:border-cyan-300 focus:ring-2 focus:ring-cyan-300/25"
+                className="w-full rounded-2xl border border-white/10 bg-slate-950/80 px-4 py-3 text-sm text-white placeholder:text-slate-500 outline-none transition focus:border-cyan-300 focus:ring-2 focus:ring-cyan-300/25 disabled:cursor-not-allowed disabled:opacity-70"
               />
             </Field>
 
@@ -207,9 +309,10 @@ async function handleGoogleSignIn() {
                 type="password"
                 required
                 value={password}
+                disabled={loading}
                 onChange={(event) => setPassword(event.target.value)}
                 placeholder="Enter your password"
-                className="w-full rounded-2xl border border-white/10 bg-slate-950/80 px-4 py-3 text-sm text-white placeholder:text-slate-500 outline-none transition focus:border-cyan-300 focus:ring-2 focus:ring-cyan-300/25"
+                className="w-full rounded-2xl border border-white/10 bg-slate-950/80 px-4 py-3 text-sm text-white placeholder:text-slate-500 outline-none transition focus:border-cyan-300 focus:ring-2 focus:ring-cyan-300/25 disabled:cursor-not-allowed disabled:opacity-70"
               />
             </Field>
 
@@ -225,31 +328,32 @@ async function handleGoogleSignIn() {
               </div>
             ) : null}
 
-            {mode === "signin" ? (
-              <button
-                type="submit"
-                disabled={loading}
-                className="inline-flex w-full items-center justify-center rounded-full bg-cyan-300 px-6 py-4 text-sm font-black text-slate-950 shadow-2xl shadow-cyan-300/20 transition hover:-translate-y-0.5 hover:bg-cyan-200 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {loading ? "Opening dashboard..." : "Sign In →"}
-              </button>
-            ) : (
-              <button
-                type="submit"
-                disabled={loading}
-                className="inline-flex w-full items-center justify-center rounded-full bg-cyan-300 px-6 py-4 text-sm font-black text-slate-950 shadow-2xl shadow-cyan-300/20 transition hover:-translate-y-0.5 hover:bg-cyan-200 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {loading ? "Creating account..." : "Create Account →"}
-              </button>
-            )}
+            <button
+              type="submit"
+              disabled={loading}
+              className="inline-flex w-full items-center justify-center rounded-full bg-cyan-300 px-6 py-4 text-sm font-black text-slate-950 shadow-2xl shadow-cyan-300/20 transition hover:-translate-y-0.5 hover:bg-cyan-200 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {buttonText}
+            </button>
           </form>
 
           <div className="mt-8 rounded-[1.75rem] border border-white/10 bg-slate-950/60 p-5">
-            <p className="text-sm font-black text-white">Inside your workspace</p>
+            <p className="text-sm font-black text-white">
+              Inside your workspace
+            </p>
             <div className="mt-4 grid gap-3 sm:grid-cols-3">
-              <MiniCard title="Campaigns" text="Launch targeted prospecting campaigns." />
-              <MiniCard title="Reports" text="Generate AI audit PDFs instantly." />
-              <MiniCard title="Outreach" text="Copy personalized sales messages." />
+              <MiniCard
+                title="Campaigns"
+                text="Launch targeted prospecting campaigns."
+              />
+              <MiniCard
+                title="Reports"
+                text="Generate AI audit PDFs instantly."
+              />
+              <MiniCard
+                title="Outreach"
+                text="Copy personalized sales messages."
+              />
             </div>
           </div>
         </section>
@@ -267,7 +371,7 @@ function Field({
   children,
 }: {
   label: string;
-  children: React.ReactNode;
+  children: ReactNode;
 }) {
   return (
     <label className="block">
