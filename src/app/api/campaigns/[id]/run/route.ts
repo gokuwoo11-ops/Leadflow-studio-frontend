@@ -246,19 +246,23 @@ async function processCampaignLeads(campaignId: string, responseData: any) {
         if (uploadError) {
           console.error(`[Run Campaign Processor] pdf upload error for lead ${leadId}`, uploadError);
         } else {
-          const { data: publicData, error: publicUrlError } = await supabase.storage
-            .from("pdf-reports")
-            .getPublicUrl(objectName);
+          const { data: publicData } = supabase.storage
+  .from("pdf-reports")
+  .getPublicUrl(objectName);
 
-          if (publicUrlError) {
-            console.error(`[Run Campaign Processor] pdf public url error for lead ${leadId}`, publicUrlError);
-          } else {
-            const publicUrl = publicData?.publicUrl || "";
-            const reportRow = {
-              lead_id: leadId,
-              pdf_url: publicUrl,
-              storage_bucket: "pdf-reports",
-            };
+const publicUrl = publicData.publicUrl || "";
+
+if (!publicUrl) {
+  console.error(`[Run Campaign Processor] no public URL generated for lead ${leadId}`);
+} else {
+  const reportRow = {
+    lead_id: leadId,
+    pdf_url: publicUrl,
+    storage_bucket: "pdf-reports",
+  };
+
+
+
             const { error: insertError } = await supabase.from("reports").insert(reportRow);
             if (insertError) {
               console.error(`[Run Campaign Processor] report insert error for lead ${leadId}`, insertError);

@@ -3,6 +3,8 @@ import { redirect } from "next/navigation";
 import { createServerSupabase } from "@/lib/supabase/server";
 import CopyButton from "./CopyButton";
 import RetryLeadButton from "./RetryLeadButton";
+import AutoRefresh from "./AutoRefresh";
+import LeadStatusSelect from "./LeadStatusSelect";
 
 type PageProps = {
   params: Promise<{ id: string }>;
@@ -49,7 +51,14 @@ export default async function ResultsPage({ params }: PageProps) {
   const campaign: Row = data.campaign || {};
   const summary: Row = data.summary || {};
   const results: Row[] = Array.isArray(data.results) ? data.results : [];
+const hasProcessingLeads =
+  Number(summary.processing_leads || 0) > 0 ||
+  results.some((item) => item?.lead?.processing_status === "processing");
 
+const shouldAutoRefresh =
+  hasProcessingLeads ||
+  campaign.status === "running" ||
+  campaign.status === "processing";
   return (
     <main className="min-h-screen bg-slate-950 px-6 py-8 text-white lg:px-10">
       <div className="mx-auto max-w-6xl space-y-8">
@@ -76,6 +85,7 @@ export default async function ResultsPage({ params }: PageProps) {
             
           </div>
         </header>
+        <AutoRefresh enabled={shouldAutoRefresh} />
 
         <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
           <MetricCard label="Total leads" value={String(summary.total_leads ?? 0)} />
@@ -126,9 +136,13 @@ export default async function ResultsPage({ params }: PageProps) {
                       </p>
                     </div>
 
-                    <span className="h-fit rounded-2xl border border-emerald-400/20 bg-emerald-400/10 px-3 py-2 text-xs font-semibold capitalize text-emerald-200">
-                      {lead.processing_status || "new"}
-                    </span>
+                    <div className="flex flex-col items-start gap-2 sm:items-end">
+  <span className="h-fit rounded-2xl border border-emerald-400/20 bg-emerald-400/10 px-3 py-2 text-xs font-semibold capitalize text-emerald-200">
+    {lead.processing_status || "new"}
+  </span>
+
+  <LeadStatusSelect leadId={lead.id} currentStatus={lead.status || "New"} />
+</div>
                   </div>
 
                   <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">

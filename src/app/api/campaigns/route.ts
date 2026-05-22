@@ -48,6 +48,7 @@ export async function POST(request: Request) {
     } = await supabase.auth.getUser();
 
     if (!user) {
+      
       return NextResponse.json(
         {
           success: false,
