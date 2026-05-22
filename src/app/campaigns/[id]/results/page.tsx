@@ -220,6 +220,20 @@ const showProcessingBanner =
           <MetricCard label="Service" value={campaign.service_offer || "—"} />
           <MetricCard label="Location" value={campaign.target_location || "—"} />
         </section>
+        {Number(campaign?.leads_requested || 0) > results.length ? (
+  <section className="rounded-[2rem] border border-amber-300/20 bg-amber-300/10 p-5 text-amber-100">
+    <p className="text-sm font-black">
+      Fewer leads found than requested
+    </p>
+
+    <p className="mt-2 text-sm leading-6">
+      You requested {Number(campaign?.leads_requested || 0)} leads, and we found{" "}
+      {results.length}. This can happen when the location or niche has
+      limited public map data. Try a broader keyword or nearby city to get
+      more leads.
+    </p>
+  </section>
+) : null}
 
         <section className="rounded-[2.5rem] border border-white/10 bg-slate-900/80 p-6 shadow-2xl shadow-cyan-950/20">
           <div className="mb-6 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
