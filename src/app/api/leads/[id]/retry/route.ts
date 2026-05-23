@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 
 const BACKEND_URL =
   process.env.BACKEND_API_URL ||
@@ -7,51 +7,57 @@ const BACKEND_URL =
   "https://pdf-api-bw6a.onrender.com";
 
 export async function POST(
-  _request: Request,
-  context: { params: Promise<{ id: string }> }
+  _request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = await context.params;
-    const leadId = String(id || "").trim();
+    const { id } = await params;
 
-    if (!leadId) {
+    if (!id) {
       return NextResponse.json(
-        { success: false, error: "Missing lead ID" },
+        {
+          success: false,
+          error: "Missing lead ID",
+        },
         { status: 400 }
       );
     }
 
-    const response = await fetch(
-      `${BACKEND_URL}/leads/${encodeURIComponent(leadId)}/retry`,
-      {
-        method: "POST",
-        cache: "no-store",
-      }
-    );
+    const response = await fetch(`${BACKEND_URL}/leads/${id}/retry`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({}),
+      cache: "no-store",
+    });
 
-    const contentType = response.headers.get("content-type") || "";
+    const data = await response.json().catch(() => null);
 
-    if (!contentType.includes("application/json")) {
-      const text = await response.text();
-
+    if (!response.ok) {
       return NextResponse.json(
         {
           success: false,
-          error: "Backend returned non-JSON response",
-          status: response.status,
-          preview: text.slice(0, 400),
+          error: data?.error || "Retry request failed",
         },
-        { status: response.status || 502 }
+        { status: response.status }
       );
     }
 
-    const data = await response.json();
-    return NextResponse.json(data, { status: response.status });
+    return NextResponse.json({
+      success: true,
+      message: data?.message || "Retry started",
+      status: data?.status || "processing",
+      lead_id: data?.lead_id || id,
+    });
   } catch (error) {
     return NextResponse.json(
       {
         success: false,
-        error: error instanceof Error ? error.message : "Retry failed",
+        error:
+          error instanceof Error
+            ? error.message
+            : "Unable to start retry",
       },
       { status: 500 }
     );
