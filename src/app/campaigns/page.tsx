@@ -44,6 +44,7 @@ export default async function CampaignsPage() {
     .from("campaigns")
     .select("*")
     .eq("user_id", user.id)
+    .neq("status", "archived")
     .order("created_at", { ascending: false });
 
   if (campaignsError) {

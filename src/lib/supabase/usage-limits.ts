@@ -1,68 +1,94 @@
-import { createServerSupabase } from "@/lib/supabase/server";
+import { SupabaseClient } from "@supabase/supabase-js";
 
-export type UsageCheckResult = {
+export type UserPlan = "free" | "starter" | "pro";
+
+export type UsageLimitResult = {
   allowed: boolean;
   error?: string;
-  plan: string;
+  plan: UserPlan;
   campaignLimit: number;
   monthlyLeadLimit: number;
   perCampaignLeadLimit: number;
-  campaignsUsed: number;
-  monthlyLeadsUsed: number;
-  leadsRequested: number;
+  usedCampaignsThisMonth: number;
+  usedLeadsThisMonth: number;
+  requestedLeads: number;
 };
 
-export async function checkUsageLimit(leadsRequested: number): Promise<UsageCheckResult> {
-  const supabase = await createServerSupabase();
+type ProfileLike = {
+  plan?: string | null;
+  campaign_limit?: number | null;
+  monthly_lead_limit?: number | null;
+  per_campaign_lead_limit?: number | null;
+};
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+function getMonthStartIso() {
+  const now = new Date();
+  return new Date(
+    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1, 0, 0, 0)
+  ).toISOString();
+}
 
-  if (!user) {
+function normalizePlan(value?: string | null): UserPlan {
+  if (value === "starter" || value === "pro") return value;
+  return "free";
+}
+
+function getDefaults(plan: UserPlan) {
+  if (plan === "pro") {
     return {
-      allowed: false,
-      error: "You must be logged in.",
-      plan: "none",
-      campaignLimit: 0,
-      monthlyLeadLimit: 0,
-      perCampaignLeadLimit: 0,
-      campaignsUsed: 0,
-      monthlyLeadsUsed: 0,
-      leadsRequested,
+      campaignLimit: 999999,
+      monthlyLeadLimit: 999999,
+      perCampaignLeadLimit: 100,
     };
   }
 
-  let { data: profile } = await supabase
-    .from("profiles")
-    .select("*")
-    .eq("user_id", user.id)
-    .maybeSingle();
-
-  if (!profile) {
-    const { data: createdProfile } = await supabase
-      .from("profiles")
-      .insert({
-        user_id: user.id,
-        plan: "free",
-        campaign_limit: 3,
-        monthly_lead_limit: 30,
-        per_campaign_lead_limit: 10,
-      })
-      .select("*")
-      .single();
-
-    profile = createdProfile;
+  if (plan === "starter") {
+    return {
+      campaignLimit: 25,
+      monthlyLeadLimit: 500,
+      perCampaignLeadLimit: 50,
+    };
   }
 
-  const plan = profile?.plan || "free";
-  const campaignLimit = Number(profile?.campaign_limit || 3);
-  const monthlyLeadLimit = Number(profile?.monthly_lead_limit || 30);
-  const perCampaignLeadLimit = Number(profile?.per_campaign_lead_limit || 10);
+  return {
+    campaignLimit: 3,
+    monthlyLeadLimit: 30,
+    perCampaignLeadLimit: 10,
+  };
+}
 
-  const requested = Math.max(Number(leadsRequested || 0), 0);
+export async function checkCampaignUsageLimit({
+  supabase,
+  userId,
+  requestedLeads,
+}: {
+  supabase: SupabaseClient;
+  userId: string;
+  requestedLeads: number;
+}): Promise<UsageLimitResult> {
+  const safeRequestedLeads = Math.max(Number(requestedLeads) || 1, 1);
 
-  if (requested > perCampaignLeadLimit) {
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("plan,campaign_limit,monthly_lead_limit,per_campaign_lead_limit")
+    .eq("id", userId)
+    .maybeSingle();
+
+  const typedProfile = (profile || {}) as ProfileLike;
+  const plan = normalizePlan(typedProfile.plan);
+  const defaults = getDefaults(plan);
+
+  const campaignLimit =
+    Number(typedProfile.campaign_limit || 0) || defaults.campaignLimit;
+
+  const monthlyLeadLimit =
+    Number(typedProfile.monthly_lead_limit || 0) || defaults.monthlyLeadLimit;
+
+  const perCampaignLeadLimit =
+    Number(typedProfile.per_campaign_lead_limit || 0) ||
+    defaults.perCampaignLeadLimit;
+
+  if (safeRequestedLeads > perCampaignLeadLimit) {
     return {
       allowed: false,
       error: `Your ${plan} plan allows up to ${perCampaignLeadLimit} leads per campaign. Please reduce the lead count or upgrade.`,
@@ -70,63 +96,70 @@ export async function checkUsageLimit(leadsRequested: number): Promise<UsageChec
       campaignLimit,
       monthlyLeadLimit,
       perCampaignLeadLimit,
-      campaignsUsed: 0,
-      monthlyLeadsUsed: 0,
-      leadsRequested: requested,
+      usedCampaignsThisMonth: 0,
+      usedLeadsThisMonth: 0,
+      requestedLeads: safeRequestedLeads,
     };
   }
 
-  const { count: campaignsUsedCount } = await supabase
+  const monthStartIso = getMonthStartIso();
+
+  const { data: monthCampaigns, error: usageError } = await supabase
     .from("campaigns")
-    .select("id", { count: "exact", head: true })
-    .eq("user_id", user.id);
+    .select("id,leads_requested,status,created_at")
+    .eq("user_id", userId)
+    .gte("created_at", monthStartIso);
 
-  const campaignsUsed = campaignsUsedCount || 0;
-
-  if (campaignsUsed >= campaignLimit) {
+  if (usageError) {
     return {
       allowed: false,
-      error: `Your ${plan} plan allows ${campaignLimit} campaigns. Please delete an old campaign or upgrade.`,
+      error: usageError.message,
       plan,
       campaignLimit,
       monthlyLeadLimit,
       perCampaignLeadLimit,
-      campaignsUsed,
-      monthlyLeadsUsed: 0,
-      leadsRequested: requested,
+      usedCampaignsThisMonth: 0,
+      usedLeadsThisMonth: 0,
+      requestedLeads: safeRequestedLeads,
     };
   }
 
-  const monthStart = new Date();
-  monthStart.setUTCDate(1);
-  monthStart.setUTCHours(0, 0, 0, 0);
+  const campaigns = Array.isArray(monthCampaigns) ? monthCampaigns : [];
 
-  const { data: monthlyCampaigns } = await supabase
-    .from("campaigns")
-    .select("leads_requested")
-    .eq("user_id", user.id)
-    .gte("created_at", monthStart.toISOString());
+  // IMPORTANT:
+  // Archived campaigns are still counted.
+  // This prevents users from deleting/archiving campaigns to reset free usage.
+  const usedCampaignsThisMonth = campaigns.length;
 
-  const monthlyLeadsUsed = Array.isArray(monthlyCampaigns)
-    ? monthlyCampaigns.reduce(
-        (sum, campaign) => sum + Number(campaign.leads_requested || 0),
-        0
-      )
-    : 0;
+  const usedLeadsThisMonth = campaigns.reduce((total, campaign) => {
+    return total + (Number(campaign.leads_requested) || 0);
+  }, 0);
 
-  if (monthlyLeadsUsed + requested > monthlyLeadLimit) {
+  if (usedCampaignsThisMonth >= campaignLimit) {
     return {
       allowed: false,
-      error: `Your ${plan} plan has ${monthlyLeadLimit} monthly leads. You already used ${monthlyLeadsUsed}. Reduce this campaign to ${
-        monthlyLeadLimit - monthlyLeadsUsed
-      } leads or upgrade.`,
+      error: `Your ${plan} plan allows ${campaignLimit} campaigns per month. Archived campaigns still count toward monthly usage.`,
       plan,
       campaignLimit,
       monthlyLeadLimit,
       perCampaignLeadLimit,
-      campaignsUsed,
-      monthlyLeadsUsed,
-      leadsRequested: requested,
+      usedCampaignsThisMonth,
+      usedLeadsThisMonth,
+      requestedLeads: safeRequestedLeads,
+    };
+  }
+
+  if (usedLeadsThisMonth + safeRequestedLeads > monthlyLeadLimit) {
+    return {
+      allowed: false,
+      error: `Your ${plan} plan allows ${monthlyLeadLimit} leads per month. You have already used ${usedLeadsThisMonth}, so this campaign would exceed your monthly limit.`,
+      plan,
+      campaignLimit,
+      monthlyLeadLimit,
+      perCampaignLeadLimit,
+      usedCampaignsThisMonth,
+      usedLeadsThisMonth,
+      requestedLeads: safeRequestedLeads,
     };
   }
 
@@ -136,8 +169,8 @@ export async function checkUsageLimit(leadsRequested: number): Promise<UsageChec
     campaignLimit,
     monthlyLeadLimit,
     perCampaignLeadLimit,
-    campaignsUsed,
-    monthlyLeadsUsed,
-    leadsRequested: requested,
+    usedCampaignsThisMonth,
+    usedLeadsThisMonth,
+    requestedLeads: safeRequestedLeads,
   };
 }
