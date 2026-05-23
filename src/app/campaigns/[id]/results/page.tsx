@@ -208,33 +208,36 @@ const showProcessingBanner =
 ) : null}
 
         <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
-          <MetricCard
-            label="Total leads"
-            value={String(summary.total_leads ?? results.length)}
-          />
-          <MetricCard
-            label="Processed"
-            value={String(summary.processed_leads ?? 0)}
-          />
-          <MetricCard label="Failed" value={String(summary.failed_leads ?? 0)} />
-          <MetricCard label="Service" value={campaign.service_offer || "—"} />
-          <MetricCard label="Location" value={campaign.target_location || "—"} />
-        </section>
-        {Number(campaign?.leads_requested || 0) > results.length ? (
-  <section className="rounded-[2rem] border border-amber-300/20 bg-amber-300/10 p-5 text-amber-100">
-    <p className="text-sm font-black">
+  <MetricCard
+    label="Total leads"
+    value={String(summary.total_leads ?? results.length)}
+  />
+  <MetricCard
+    label="Processed"
+    value={String(summary.processed_leads ?? 0)}
+  />
+  <MetricCard label="Failed" value={String(summary.failed_leads ?? 0)} />
+  <MetricCard label="Service" value={campaign.service_offer || "—"} />
+  <MetricCard label="Location" value={campaign.target_location || "—"} />
+</section>
+       {Number(campaign?.leads_requested || 0) > results.length ? (
+  <section className="rounded-[2rem] border border-amber-300/20 bg-amber-300/10 p-5 text-amber-100 shadow-xl shadow-amber-950/10">
+    <p className="text-sm font-black uppercase tracking-[0.18em] text-amber-200">
       Fewer leads found than requested
     </p>
 
-    <p className="mt-2 text-sm leading-6">
-      You requested {Number(campaign?.leads_requested || 0)} leads, and we found{" "}
-      {results.length}. This can happen when the location or niche has
-      limited public map data. Try a broader keyword or nearby city to get
-      more leads.
+    <h3 className="mt-3 text-2xl font-black text-white">
+      We found {results.length} strong matches from available public map data.
+    </h3>
+
+    <p className="mt-3 text-sm leading-7 text-amber-100/90">
+      You requested {Number(campaign?.leads_requested || 0)} leads, and the
+      system found {results.length}. This can happen when the niche or location
+      has limited OpenStreetMap data. Try a broader keyword or nearby location
+      to discover more leads.
     </p>
   </section>
 ) : null}
-
         <section className="rounded-[2.5rem] border border-white/10 bg-slate-900/80 p-6 shadow-2xl shadow-cyan-950/20">
           <div className="mb-6 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
             <div>

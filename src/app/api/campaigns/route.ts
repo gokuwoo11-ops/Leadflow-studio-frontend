@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createServerSupabase } from "@/lib/supabase/server";
-
+import { checkUsageLimit } from "@/lib/supabase/usage-limits";
 const BACKEND_URL =
   process.env.BACKEND_API_URL || "https://pdf-api-bw6a.onrender.com";
 
@@ -59,6 +59,22 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
+    const leadsRequested = Number(
+  body.leads_requested || body.leadsRequested || body.max_results || 10
+);
+
+const usage = await checkUsageLimit(leadsRequested);
+
+if (!usage.allowed) {
+  return NextResponse.json(
+    {
+      success: false,
+      error: usage.error,
+      usage,
+    },
+    { status: 403 }
+  );
+}
     const leadSearchKeyword = String(body.lead_search_keyword ?? body.search_keyword ?? "");
     const targetBusiness =
       String(body.target_business ?? body.targetBusiness ?? "").trim() ||
@@ -89,6 +105,8 @@ export async function POST(request: Request) {
       body: JSON.stringify(requestBody),
       cache: "no-store",
     });
+     
+    
 
     const responseText = await response.clone().text();
     let data;
