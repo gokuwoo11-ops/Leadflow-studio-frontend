@@ -5,7 +5,7 @@ type RouteContext = {
   params: Promise<{ id: string }>;
 };
 
-export async function POST(_request: NextRequest, context: RouteContext) {
+async function archiveCampaign(context: RouteContext) {
   try {
     const { id } = await context.params;
 
@@ -103,4 +103,12 @@ export async function POST(_request: NextRequest, context: RouteContext) {
       { status: 500 }
     );
   }
+}
+
+export async function POST(_request: NextRequest, context: RouteContext) {
+  return archiveCampaign(context);
+}
+
+export async function DELETE(_request: NextRequest, context: RouteContext) {
+  return archiveCampaign(context);
 }
