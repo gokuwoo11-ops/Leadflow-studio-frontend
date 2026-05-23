@@ -214,13 +214,13 @@ export default async function CampaignsPage() {
   >
     Back to Home
   </Link>
-
-  <Link
-    href="/pricing"
-    className="rounded-full border border-white/15 bg-white/[0.04] px-5 py-3 text-sm font-black text-white transition hover:-translate-y-0.5 hover:border-cyan-300/40 hover:bg-cyan-300/10"
-  >
-    Pricing
-  </Link>
+<Link
+  href="/pricing"
+  className="group relative overflow-hidden rounded-full border border-amber-300/30 bg-amber-300/10 px-5 py-3 text-sm font-black text-amber-100 shadow-xl shadow-amber-950/20 transition hover:-translate-y-0.5 hover:border-amber-200/60 hover:bg-amber-300/20"
+>
+  <span className="relative z-10">Upgrade Plan</span>
+  <span className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/20 to-transparent transition duration-700 group-hover:translate-x-full" />
+</Link>
 
   <Link
     href="/campaigns/new"

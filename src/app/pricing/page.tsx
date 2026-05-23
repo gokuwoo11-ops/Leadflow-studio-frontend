@@ -42,7 +42,7 @@ const plans = [
       "CSV export",
       "Manual account upgrade after payment",
     ],
-    cta: "Upgrade on WhatsApp",
+    cta: "REQUEST UPGRADE",
     href: whatsappUrl,
     highlighted: true,
   },
@@ -108,7 +108,7 @@ export default function PricingPage() {
               rel="noreferrer noopener"
               className="rounded-full bg-cyan-300 px-5 py-3 text-sm font-black text-slate-950 shadow-xl shadow-cyan-300/10 transition hover:-translate-y-0.5 hover:bg-cyan-200"
             >
-              Contact for upgrade
+              Upgrade Access
             </a>
           </div>
         </header>
