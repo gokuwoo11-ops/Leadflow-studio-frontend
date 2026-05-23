@@ -27,6 +27,7 @@ export async function POST(
       method: "POST",
       headers: {
         "Content-Type": "application/json",
+         "x-internal-api-secret": process.env.INTERNAL_API_SECRET || "",
       },
       body: JSON.stringify({}),
       cache: "no-store",
