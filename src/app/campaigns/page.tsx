@@ -219,6 +219,12 @@ export default async function CampaignsPage() {
                 href="/campaigns/new"
                 className="rounded-full bg-cyan-300 px-5 py-3 text-sm font-black text-slate-950 shadow-2xl shadow-cyan-300/20 transition hover:-translate-y-0.5 hover:bg-cyan-200"
               >
+                <Link
+  href="/pricing"
+  className="rounded-full border border-white/15 bg-white/[0.04] px-5 py-3 text-sm font-black text-white transition hover:-translate-y-0.5 hover:border-cyan-300/40 hover:bg-cyan-300/10"
+>
+  Pricing
+</Link>
                 Create New Campaign →
               </Link>
             </div>
