@@ -71,7 +71,7 @@ export async function checkCampaignUsageLimit({
   const { data: profile } = await supabase
     .from("profiles")
     .select("plan,campaign_limit,monthly_lead_limit,per_campaign_lead_limit")
-    .eq("id", userId)
+    .eq("user_id", userId)
     .maybeSingle();
 
   const typedProfile = (profile || {}) as ProfileLike;
